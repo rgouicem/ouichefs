@@ -2,9 +2,9 @@
 The main objective of this project is to provide a simple Linux filesystem for students to build on.
 
 ## Summary
-- [Usage](./#Usage)
-- [Design](./#Design)
-- [Roadmap](./#Roadmap)
+- [Usage](#Usage)
+- [Design](#Design)
+- [Roadmap](#Roadmap)
 
 ## Usage
 ### Building the kernel module
