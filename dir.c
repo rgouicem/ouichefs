@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #define pr_fmt(fmt) "ouichefs: " fmt
 
 #include <linux/module.h>
@@ -7,9 +8,14 @@
 
 #include "ouichefs.h"
 
-static int ouichefs_iterate(struct file *file, struct dir_context *ctx)
+/*
+ * Iterate over the files contained in dir and commit them in ctx.
+ * This function is called by the VFS while ctx->pos changes.
+ * Return 0 on success.
+ */
+static int ouichefs_iterate(struct file *dir, struct dir_context *ctx)
 {
-	struct inode *inode = file_inode(file);
+	struct inode *inode = file_inode(dir);
 	struct ouichefs_inode_info *ci = OUICHEFS_INODE(inode);
 	struct super_block *sb = inode->i_sb;
 	struct buffer_head *bh = NULL;
@@ -17,16 +23,19 @@ static int ouichefs_iterate(struct file *file, struct dir_context *ctx)
 	struct ouichefs_file *f = NULL;
 	int i;
 
-	/* Check that file is a directory */
+	/* Check that dir is a directory */
 	if (!S_ISDIR(inode->i_mode))
 		return -ENOTDIR;
 
-	/* Check that ctx->pos is not bigger than what we can handle */
+	/*
+	 * Check that ctx->pos is not bigger than what we can handle (including
+	 * . and ..)
+	 */
 	if (ctx->pos > OUICHEFS_MAX_SUBFILES + 2)
 		return 0;
 
-	/* Emit . and .. */
-	if (!dir_emit_dots(file, ctx))
+	/* Commit . and .. to ctx */
+	if (!dir_emit_dots(dir, ctx))
 		return 0;
 
 	/* Read the directory index block on disk */
@@ -35,6 +44,7 @@ static int ouichefs_iterate(struct file *file, struct dir_context *ctx)
 		return -EIO;
 	dblock = (struct ouichefs_dir_block *)bh->b_data;
 
+	/* Iterate over the index block and commit subfiles */
 	for (i = ctx->pos - 2; i < OUICHEFS_MAX_SUBFILES; i++) {
 		f = &dblock->files[i];
 		if (!f->inode)

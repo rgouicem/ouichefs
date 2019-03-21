@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ouichefs - a simple educational filesystem for Linux
  *
@@ -16,9 +17,9 @@
 #include "bitmap.h"
 
 /*
- * Map the buffer_head passed in argument with the actual corresponding physical
- * block on disk. If the requested block is not allocated and create is true,
- * allocate a new block on disk and map it.
+ * Map the buffer_head passed in argument with the iblock-th block of the file
+ * represented by inode. If the requested block is not allocated and create is
+ * true,  allocate a new block on disk and map it.
  */
 static int ouichefs_file_get_block(struct inode *inode, sector_t iblock,
 				   struct buffer_head *bh_result, int create)
@@ -41,7 +42,10 @@ static int ouichefs_file_get_block(struct inode *inode, sector_t iblock,
 		return -EIO;
 	index = (struct ouichefs_file_index_block *)bh_index->b_data;
 
-	/* Check if iblock is already allocated. If not, allocate it. */
+	/*
+	 * Check if iblock is already allocated. If not and create is true,
+	 * allocate it. Else, get the physical block number.
+	 */
 	if (index->blocks[iblock] == 0) {
 		if (!create)
 			return 0;
@@ -55,6 +59,8 @@ static int ouichefs_file_get_block(struct inode *inode, sector_t iblock,
 	} else {
 		bno = index->blocks[iblock];
 	}
+
+	/* Map the physical block to to the given buffer_head */
 	map_bh(bh_result, sb, bno);
 
 brelse_index:
@@ -63,26 +69,39 @@ brelse_index:
 	return ret;
 }
 
+/*
+ * Called by the page cache to read a page from the physical disk and map it in
+ * memory.
+ */
 static int ouichefs_readpage(struct file *file, struct page *page)
 {
 	return mpage_readpage(page, ouichefs_file_get_block);
 }
 
+/*
+ * Called by the page cache to write a dirty page to the physical disk (when
+ * sync is called or when memory is needed).
+ */
 static int ouichefs_writepage(struct page *page, struct writeback_control *wbc)
 {
 	return block_write_full_page(page, ouichefs_file_get_block, wbc);
 }
 
+/*
+ * Called by the VFS when a write() syscall occurs on file before writing the
+ * data in the page cache. This functions checks if the write will be able to
+ * complete and allocates the necessary blocks through block_write_begin().
+ */
 static int ouichefs_write_begin(struct file *file,
 				struct address_space *mapping, loff_t pos,
-				unsigned len, unsigned flags,
+				unsigned int len, unsigned int flags,
 				struct page **pagep, void **fsdata)
 {
 	struct ouichefs_sb_info *sbi = OUICHEFS_SB(file->f_inode->i_sb);
 	int err;
 	uint32_t nr_allocs = 0;
 
-	/* Check if write can be completed */
+	/* Check if the write can be completed (enough space?) */
 	if (pos + len > OUICHEFS_MAX_FILESIZE)
 		return -ENOSPC;
 	nr_allocs = max(pos + len, file->f_inode->i_size) / OUICHEFS_BLOCK_SIZE;
@@ -104,8 +123,13 @@ static int ouichefs_write_begin(struct file *file,
 	return err;
 }
 
+/*
+ * Called by the VFS after writing data from a write() syscall to the page
+ * cache. This functions updates inode metadata and truncates the file if
+ * necessary.
+ */
 static int ouichefs_write_end(struct file *file, struct address_space *mapping,
-			      loff_t pos, unsigned len, unsigned copied,
+			      loff_t pos, unsigned int len, unsigned int copied,
 			      struct page *page, void *fsdata)
 {
 	int ret;
@@ -113,6 +137,7 @@ static int ouichefs_write_end(struct file *file, struct address_space *mapping,
 	struct ouichefs_inode_info *ci = OUICHEFS_INODE(inode);
 	struct super_block *sb = inode->i_sb;
 
+	/* Complete the write() */
 	ret = generic_write_end(file, mapping, pos, len, copied, page, fsdata);
 	if (ret < len) {
 		pr_err("%s:%d: wrote less than asked... what do I do? nothing for now...\n",
@@ -131,7 +156,10 @@ static int ouichefs_write_end(struct file *file, struct address_space *mapping,
 			struct buffer_head *bh_index;
 			struct ouichefs_file_index_block *index;
 
+			/* Free unused blocks from page cache */
 			truncate_pagecache(inode, inode->i_size);
+
+			/* Read index block to remove unused blocks */
 			bh_index = sb_bread(sb, ci->index_block);
 			if (!bh_index) {
 				pr_err("failed truncating '%s'. we just lost %lu blocks\n",
@@ -148,6 +176,7 @@ static int ouichefs_write_end(struct file *file, struct address_space *mapping,
 				index->blocks[i] = 0;
 			}
 			mark_buffer_dirty(bh_index);
+			brelse(bh_index);
 		}
 	}
 end:

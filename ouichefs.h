@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _OUICHEFS_H
 #define _OUICHEFS_H
 
@@ -30,16 +31,16 @@
  */
 
 struct ouichefs_inode {
-	uint32_t i_mode;		  /* File mode */
-	uint32_t i_uid;             /* Owner id */
-	uint32_t i_gid;		  /* Group id */
-	uint32_t i_size;		  /* Size in bytes */
-	uint32_t i_ctime;		  /* Inode change time */
-	uint32_t i_atime;		  /* Access time */
-	uint32_t i_mtime;		  /* Modification time */
-	uint32_t i_blocks;	  /* Block count (subdir count for directories) */
-	uint32_t i_nlink;		  /* Hard links count */
-	uint32_t index_block;	  /* Block with list of blocks for this file */
+	uint32_t i_mode;	/* File mode */
+	uint32_t i_uid;         /* Owner id */
+	uint32_t i_gid;		/* Group id */
+	uint32_t i_size;	/* Size in bytes */
+	uint32_t i_ctime;	/* Inode change time */
+	uint32_t i_atime;	/* Access time */
+	uint32_t i_mtime;	/* Modification time */
+	uint32_t i_blocks;	/* Block count (subdir count for directories) */
+	uint32_t i_nlink;	/* Hard links count */
+	uint32_t index_block;	/* Block with list of blocks for this file */
 };
 
 struct ouichefs_inode_info {
@@ -88,6 +89,7 @@ extern struct inode *ouichefs_iget(struct super_block *sb, unsigned long ino);
 /* file functions */
 extern const struct file_operations ouichefs_file_ops;
 extern const struct file_operations ouichefs_dir_ops;
+extern const struct address_space_operations ouichefs_aops;
 
 /* Getters for superbock and inode */
 #define OUICHEFS_SB(sb) (sb->s_fs_info)

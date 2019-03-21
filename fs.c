@@ -1,7 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ouichefs - a simple educational filesystem for Linux
  *
- * Copyright (C) 2018 Sorbonne Universite, LIP6, Redha Gouicem <redha.gouicem@lip6.fr>
+ * Copyright (C) 2018  Redha Gouicem <redha.gouicem@lip6.fr>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -12,11 +13,9 @@
 
 #include "ouichefs.h"
 
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Redha Gouicem, <redha.gouicem@lip6.fr>");
-MODULE_DESCRIPTION("ouichefs, a simple educational filesystem for Linux");
-
-
+/*
+ * Mount a ouichefs partition
+ */
 struct dentry *ouichefs_mount(struct file_system_type *fs_type, int flags,
 			      const char *dev_name, void *data)
 {
@@ -25,15 +24,16 @@ struct dentry *ouichefs_mount(struct file_system_type *fs_type, int flags,
 	dentry = mount_bdev(fs_type, flags, dev_name, data,
 			    ouichefs_fill_super);
 	if (IS_ERR(dentry))
-		pr_err("'%s' mount failure\n",
-		       dev_name);
+		pr_err("'%s' mount failure\n", dev_name);
 	else
-		pr_info("'%s' mount success\n",
-			dev_name);
+		pr_info("'%s' mount success\n", dev_name);
 
 	return dentry;
 }
 
+/*
+ * Unmount a ouichefs partition
+ */
 void ouichefs_kill_sb(struct super_block *sb)
 {
 	kill_block_super(sb);
@@ -76,3 +76,8 @@ static void __exit ouichefs_exit(void)
 
 module_init(ouichefs_init);
 module_exit(ouichefs_exit);
+
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Redha Gouicem, <redha.gouicem@lip6.fr>");
+MODULE_DESCRIPTION("ouichefs, a simple educational filesystem for Linux");
