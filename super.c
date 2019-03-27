@@ -10,11 +10,32 @@
 
 #include "ouichefs.h"
 
+static struct kmem_cache *ouichefs_inode_cache;
+
+int ouichefs_init_inode_cache(void)
+{
+	ouichefs_inode_cache =
+		kmem_cache_create("ouichefs_cache",
+				  sizeof(struct ouichefs_inode_info), 0,
+				  0, NULL);
+	if (!ouichefs_inode_cache)
+		return -ENOMEM;
+	return 0;
+}
+
+void ouichefs_destroy_inode_cache(void)
+{
+	kmem_cache_destroy(ouichefs_inode_cache);
+}
+
 static struct inode *ouichefs_alloc_inode(struct super_block *sb)
 {
 	struct ouichefs_inode_info *ci;
 
-	ci = kzalloc(sizeof(struct ouichefs_inode_info), GFP_KERNEL);
+	/* ci = kzalloc(sizeof(struct ouichefs_inode_info), GFP_KERNEL); */
+	ci = kmem_cache_alloc(ouichefs_inode_cache, GFP_KERNEL);
+	if (!ci)
+		return NULL;
 	inode_init_once(&ci->vfs_inode);
 	return &ci->vfs_inode;
 }
@@ -24,7 +45,7 @@ static void ouichefs_destroy_inode(struct inode *inode)
 	struct ouichefs_inode_info *ci;
 
 	ci = OUICHEFS_INODE(inode);
-	kfree(ci);
+	kmem_cache_free(ouichefs_inode_cache, ci);
 }
 
 static int ouichefs_write_inode(struct inode *inode,

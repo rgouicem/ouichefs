@@ -84,7 +84,9 @@ struct ouichefs_dir_block {
 int ouichefs_fill_super(struct super_block *sb, void *data, int silent);
 
 /* inode functions */
-extern struct inode *ouichefs_iget(struct super_block *sb, unsigned long ino);
+int ouichefs_init_inode_cache(void);
+void ouichefs_destroy_inode_cache(void);
+struct inode *ouichefs_iget(struct super_block *sb, unsigned long ino);
 
 /* file functions */
 extern const struct file_operations ouichefs_file_ops;
