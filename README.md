@@ -10,6 +10,8 @@ The main objective of this project is to provide a simple Linux filesystem for s
 ### Building the kernel module
 You can build the kernel module for your currently running kernel with `make`. If you wish to build the module against a different kernel, run `make KERNELDIR=<path>`. Insert the module with `insmod ouichefs.ko`.
 
+This code was tested on a 4.19 kernel.
+
 ### Formatting a partition
 First, build `mkfs.ouichefs` from the mkfs directory. Run `mkfs.ouichefs img` to format img as a ouichefs partition. For example, create a zeroed file of 50 MiB with `dd if=/dev/zero of=test.img bs=1M count=50` and run `mkfs.ouichefs test.img`. You can then mount this image on a system with the ouichefs kernel module installed.
 
