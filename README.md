@@ -30,7 +30,11 @@ The superblock is the first block of the partition (block 0). It contains the pa
 ### Inode store
 Contains all the inodes of the partition. The maximum number of inodes is equal to the number of blocks of the partition. Each inode contains 40 B of data: standard data such as file size and number of used blocks, as well as a ouichefs-specific field called `index_block`. This block contains:
   - for a directory: the list of files in this directory. A directory can contain at most 128 files, and filenames are limited to 28 characters to fit in a single block.
+  
+![directory block](https://raw.githubusercontent.com/rgouicem/ouichefs/master/docs/dir_block.png)
   - for a file: the list of blocks containing the actual data of this file. Since block IDs are stored as 32-bit values, at most 1024 links fit in a single block, limiting the size of a file to 4 MiB.
+
+![file block](https://raw.githubusercontent.com/rgouicem/ouichefs/master/docs/file_block.png)
 
 ### Inode and block free bitmaps
 These two bitmaps track if inodes/blocks are used or not.
