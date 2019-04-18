@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * ouichefs - a simple educational filesystem for Linux
+ * ouiche_fs - a simple educational filesystem for Linux
  *
  * Copyright (C) 2018  Redha Gouicem <redha.gouicem@lip6.fr>
  */
@@ -14,7 +14,7 @@
 #include "ouichefs.h"
 
 /*
- * Mount a ouichefs partition
+ * Mount a ouiche_fs partition
  */
 struct dentry *ouichefs_mount(struct file_system_type *fs_type, int flags,
 			      const char *dev_name, void *data)
@@ -32,7 +32,7 @@ struct dentry *ouichefs_mount(struct file_system_type *fs_type, int flags,
 }
 
 /*
- * Unmount a ouichefs partition
+ * Unmount a ouiche_fs partition
  */
 void ouichefs_kill_sb(struct super_block *sb)
 {

@@ -1,4 +1,4 @@
-# ouichefs - a simple educational filesystem for Linux
+# ouiche_fs - a simple educational filesystem for Linux
 The main objective of this project is to provide a simple Linux filesystem for students to build on.
 
 ## Summary
@@ -13,7 +13,7 @@ You can build the kernel module for your currently running kernel with `make`. I
 This code was tested on a 4.19 kernel.
 
 ### Formatting a partition
-First, build `mkfs.ouichefs` from the mkfs directory. Run `mkfs.ouichefs img` to format img as a ouichefs partition. For example, create a zeroed file of 50 MiB with `dd if=/dev/zero of=test.img bs=1M count=50` and run `mkfs.ouichefs test.img`. You can then mount this image on a system with the ouichefs kernel module installed.
+First, build `mkfs.ouichefs` from the mkfs directory. Run `mkfs.ouichefs img` to format img as a ouiche_fs partition. For example, create a zeroed file of 50 MiB with `dd if=/dev/zero of=test.img bs=1M count=50` and run `mkfs.ouichefs test.img`. You can then mount this image on a system with the ouiche_fs kernel module installed.
 
 ## Design
 This filesystem does not provide any fancy feature to ease understanding.

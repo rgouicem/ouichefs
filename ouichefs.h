@@ -1,4 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * ouiche_fs - a simple educational filesystem for Linux
+ *
+ * Copyright (C) 2018 Redha Gouicem <redha.gouicem@lip6.fr>
+ */
 #ifndef _OUICHEFS_H
 #define _OUICHEFS_H
 

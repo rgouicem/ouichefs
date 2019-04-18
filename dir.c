@@ -1,4 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
+/*
+ * ouiche_fs - a simple educational filesystem for Linux
+ *
+ * Copyright (C) 2018 Redha Gouicem <redha.gouicem@lip6.fr>
+ */
 #define pr_fmt(fmt) "ouichefs: " fmt
 
 #include <linux/module.h>

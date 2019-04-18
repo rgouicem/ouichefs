@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * ouichefs - a simple educational filesystem for Linux
+ * ouiche_fs - a simple educational filesystem for Linux
  *
  * Copyright (C) 2018 Redha Gouicem <redha.gouicem@lip6.fr>
  */
