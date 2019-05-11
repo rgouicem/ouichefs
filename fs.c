@@ -36,6 +36,8 @@ struct dentry *ouichefs_mount(struct file_system_type *fs_type, int flags,
  */
 void ouichefs_kill_sb(struct super_block *sb)
 {
+	ouichefs_dedup_scan(sb);
+
 	kill_block_super(sb);
 
 	pr_info("unmounted disk\n");
