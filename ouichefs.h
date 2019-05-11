@@ -93,6 +93,7 @@ struct ouichefs_dedup_info {
 
 /* superblock functions */
 int ouichefs_fill_super(struct super_block *sb, void *data, int silent);
+int ouichefs_dedup_scan(struct super_block *sb);
 
 /* inode functions */
 int ouichefs_init_inode_cache(void);
