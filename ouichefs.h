@@ -43,7 +43,7 @@ struct ouichefs_inode {
 	uint32_t i_ctime;	/* Inode change time */
 	uint32_t i_atime;	/* Access time */
 	uint32_t i_mtime;	/* Modification time */
-	uint32_t i_blocks;	/* Block count (subdir count for directories) */
+	uint32_t i_blocks;	/* Block count */
 	uint32_t i_nlink;	/* Hard links count */
 	uint32_t index_block;	/* Block with list of blocks for this file */
 };
