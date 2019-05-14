@@ -85,11 +85,13 @@ struct ouichefs_dir_block {
 	} files[OUICHEFS_MAX_SUBFILES];
 };
 
+// Struct used for comparing a block against other blocks used by the FS
 struct ouichefs_dedup_info {
-	uint32_t block;
-	loff_t block_size;
+	uint32_t block; // The number of the block to compare
+	loff_t block_size; // The size of the block's "payload"
 
-	uint32_t eq_block;
+	uint32_t eq_block; // The number of a block with the same payload.
+					   // If there's no such block, it is equal to 0.
 };
 
 /* superblock functions */
