@@ -86,9 +86,10 @@ struct ouichefs_dir_block {
 };
 
 struct ouichefs_dedup_info {
-	struct buffer_head *bh_index;
 	uint32_t block;
 	loff_t block_size;
+
+	uint32_t eq_block;
 };
 
 /* superblock functions */

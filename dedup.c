@@ -6,6 +6,7 @@
 #include <linux/string.h>
 
 #include "ouichefs.h"
+#include "bitmap.h"
 
 static int ouichefs_dedup_scan_directory(struct inode *inode, struct ouichefs_dedup_info *dedup_info);
 static int ouichefs_dedup_scan_file(struct inode *inode, struct ouichefs_dedup_info *dedup_info);
@@ -14,6 +15,9 @@ static int are_eq_blocks(struct super_block *sb, uint32_t b1, uint32_t b2, loff_
 int ouichefs_dedup_scan(struct super_block *sb)
 {
     int err;
+
+    pr_info("syncing filesystem\n");
+    sync_filesystem(sb);
 
     pr_info("scanning for duplicated blocks\n");
 
@@ -69,8 +73,6 @@ static int ouichefs_dedup_scan_directory(struct inode *inode, struct ouichefs_de
         }
     }
 
-    // mark_buffer_dirty(bh);
-    // sync_dirty_buffer(bh);
     brelse(bh);
 
     return 0;
@@ -115,24 +117,33 @@ static int ouichefs_dedup_scan_file(struct inode *inode, struct ouichefs_dedup_i
             if (dedup_info == NULL) {
                 struct ouichefs_dedup_info di;
 
-                di.bh_index = bh_index;
                 di.block = current_block;
                 di.block_size = block_size;
+                di.eq_block = 0;
 
                 pr_info("composed of the block %d of size %lld\n", di.block, di.block_size);
 
                 if (ouichefs_dedup_scan_directory(sb->s_root->d_inode, &di) < 0)
                     goto fail_brelse;
+
+                if (di.eq_block > 0) {
+                    struct ouichefs_sb_info *sbi = OUICHEFS_SB(sb);
+
+                    pr_info("block %d has eq %d\n", current_block, di.eq_block);
+
+                    put_block(sbi, index->blocks[i]);
+                    index->blocks[i] = di.eq_block;
+                }
             } else {
                 if ((dedup_info->block != current_block) && are_eq_blocks(sb, dedup_info->block, current_block, dedup_info->block_size, block_size)) {
-                    pr_info("block %d and %d are equals\n", dedup_info->block, current_block);
+                    dedup_info->eq_block = current_block;
                 }
             }
         }
     }
 
-    // mark_buffer_dirty(bh);
-    // sync_dirty_buffer(bh);
+    mark_buffer_dirty(bh_index);
+    sync_dirty_buffer(bh_index);
     brelse(bh_index);
 
     return 0;
