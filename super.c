@@ -97,9 +97,11 @@ static void ouichefs_put_super(struct super_block *sb)
 {
 	struct ouichefs_sb_info *sbi = OUICHEFS_SB(sb);
 
-	kfree(sbi->ifree_bitmap);
-	kfree(sbi->bfree_bitmap);
-	kfree(sbi);
+	if (sbi) {
+		kfree(sbi->ifree_bitmap);
+		kfree(sbi->bfree_bitmap);
+		kfree(sbi);
+	}
 }
 
 static int ouichefs_sync_fs(struct super_block *sb, int wait)
