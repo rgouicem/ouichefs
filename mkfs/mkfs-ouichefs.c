@@ -32,22 +32,31 @@ struct ouichefs_inode {
 	uint32_t index_block;	  /* Block with list of blocks for this file */
 };
 
+struct ouichefs_ref_counter {
+	uint32_t block;		// Number of the block referenced by this counter
+	uint32_t ref_count; // Number of references to this block
+};
+
 #define OUICHEFS_INODES_PER_BLOCK (OUICHEFS_BLOCK_SIZE / sizeof(struct ouichefs_inode))
+
+#define OUICHEFS_REF_COUNTERS_PER_BLOCK (OUICHEFS_BLOCK_SIZE / sizeof(struct ouichefs_ref_counter))
 
 struct ouichefs_superblock {
 	uint32_t magic;		  /* Magic number */
 
 	uint32_t nr_blocks;	  /* Total number of blocks (incl sb & inodes) */
 	uint32_t nr_inodes;       /* Total number of inodes */
+	uint32_t nr_ref_counters; // Total number of reference counters
 
-	uint32_t nr_istore_blocks;/* Number of inode store blocks */
-	uint32_t nr_ifree_blocks; /* Number of free inodes bitmask blocks */
-	uint32_t nr_bfree_blocks; /* Number of free blocks bitmask blocks */
+	uint32_t nr_istore_blocks; /* Number of inode store blocks */
+	uint32_t nr_rcstore_blocks;// Number of reference counters table blocks
+	uint32_t nr_ifree_blocks;  /* Number of free inodes bitmask blocks */
+	uint32_t nr_bfree_blocks;  /* Number of free blocks bitmask blocks */
 
-	uint32_t nr_free_inodes;  /* Number of free inodes */
-	uint32_t nr_free_blocks;  /* Number of free blocks */
+	uint32_t nr_free_inodes;   /* Number of free inodes */
+	uint32_t nr_free_blocks;   /* Number of free blocks */
 
-	char padding[4064];       /* Padding to match block size */
+	char padding[4056];       /* Padding to match block size */
 };
 
 struct ouichefs_file_index_block {
@@ -84,6 +93,7 @@ static struct ouichefs_superblock *write_superblock(int fd, struct stat *fstats)
 	struct ouichefs_superblock *sb;
 	uint32_t nr_inodes = 0, nr_blocks = 0, nr_ifree_blocks = 0;
 	uint32_t nr_bfree_blocks = 0, nr_data_blocks = 0, nr_istore_blocks = 0;
+	uint32_t nr_ref_counters = 0, nr_rcstore_blocks = 0;
 	uint32_t mod;
 
 	sb = malloc(sizeof(struct ouichefs_superblock));
@@ -92,19 +102,26 @@ static struct ouichefs_superblock *write_superblock(int fd, struct stat *fstats)
 
 	nr_blocks = fstats->st_size / OUICHEFS_BLOCK_SIZE;
 	nr_inodes = nr_blocks;
+	nr_ref_counters = nr_blocks;
 	mod = nr_inodes % OUICHEFS_INODES_PER_BLOCK;
 	if (mod != 0)
 		nr_inodes += mod;
+	mod = nr_ref_counters % OUICHEFS_REF_COUNTERS_PER_BLOCK;
+	if (mod != 0)
+		nr_ref_counters += mod;
 	nr_istore_blocks = idiv_ceil(nr_inodes, OUICHEFS_INODES_PER_BLOCK);
+	nr_rcstore_blocks = idiv_ceil(nr_ref_counters, OUICHEFS_REF_COUNTERS_PER_BLOCK);
 	nr_ifree_blocks = idiv_ceil(nr_inodes, OUICHEFS_BLOCK_SIZE * 8);
 	nr_bfree_blocks = idiv_ceil(nr_blocks, OUICHEFS_BLOCK_SIZE * 8);
-	nr_data_blocks = nr_blocks - 1 - nr_istore_blocks - nr_ifree_blocks - nr_bfree_blocks;
+	nr_data_blocks = nr_blocks - 1 - nr_istore_blocks - nr_ifree_blocks - nr_bfree_blocks - nr_rcstore_blocks;
 
 	memset(sb, 0, sizeof(struct ouichefs_superblock));
 	sb->magic = htole32(OUICHEFS_MAGIC);
 	sb->nr_blocks = htole32(nr_blocks);
 	sb->nr_inodes = htole32(nr_inodes);
+	sb->nr_ref_counters = htole32(nr_ref_counters);
 	sb->nr_istore_blocks = htole32(nr_istore_blocks);
+	sb->nr_rcstore_blocks = htole32(nr_rcstore_blocks);
 	sb->nr_ifree_blocks = htole32(nr_ifree_blocks);
 	sb->nr_bfree_blocks = htole32(nr_bfree_blocks);
 	sb->nr_free_inodes = htole32(nr_inodes - 1);
@@ -120,12 +137,14 @@ static struct ouichefs_superblock *write_superblock(int fd, struct stat *fstats)
 	       "\tmagic=%#x\n"
 	       "\tnr_blocks=%u\n"
 	       "\tnr_inodes=%u (istore=%u blocks)\n"
+		   "\tnr_ref_counters=%u (rcstore=%u blocks)\n"
 	       "\tnr_ifree_blocks=%u\n"
 	       "\tnr_bfree_blocks=%u\n"
 	       "\tnr_free_inodes=%u\n"
 	       "\tnr_free_blocks=%u\n",
 	       sizeof(struct ouichefs_superblock),
 	       sb->magic, sb->nr_blocks, sb->nr_inodes, sb->nr_istore_blocks,
+		   sb->nr_ref_counters, sb->nr_rcstore_blocks,
 	       sb->nr_ifree_blocks, sb->nr_bfree_blocks, sb->nr_free_inodes,
 	       sb->nr_free_blocks);
 
@@ -150,6 +169,7 @@ static int write_inode_store(int fd, struct ouichefs_superblock *sb)
 	inode = (struct ouichefs_inode *)block;
 	first_data_block = 1 + le32toh(sb->nr_bfree_blocks) +
 		le32toh(sb->nr_ifree_blocks) +
+		le32toh(sb->nr_rcstore_blocks) +
 		le32toh(sb->nr_istore_blocks);
 	inode->i_mode = htole32(S_IFDIR |
 				S_IRUSR | S_IRGRP | S_IROTH |
@@ -183,6 +203,51 @@ static int write_inode_store(int fd, struct ouichefs_superblock *sb)
 	printf("Inode store: wrote %d blocks\n"
 	       "\tinode size = %ld B\n",
 	       i, sizeof(struct ouichefs_inode));
+
+end:
+	free(block);
+	return ret;
+}
+
+static int write_ref_counter_store(int fd, struct ouichefs_superblock *sb)
+{
+	int ret = 0;
+	uint32_t i;
+	struct ouichefs_ref_counter *rc;
+	uint32_t blk_nb = 0;
+	char *block;
+
+	block = malloc(OUICHEFS_BLOCK_SIZE);
+	if (!block)
+		return -1;
+
+	// Initialise the reference counters table
+	for (i = 0; i < sb->nr_rcstore_blocks; i++) {
+		int j = 0;
+
+		memset(block, 0, OUICHEFS_BLOCK_SIZE);
+		rc = (struct ouichefs_ref_counter*)block;
+
+		for (j = 0; j < OUICHEFS_REF_COUNTERS_PER_BLOCK; j++) {
+			// The block numbers of the reference counters ranges from 0 to
+			// nr_blocks - 1 (included)
+			rc[j].block = blk_nb++;
+			// The reference counters are initialised to zero
+			rc[j].ref_count = 0;
+		}
+
+		ret = write(fd, block, OUICHEFS_BLOCK_SIZE);
+		if (ret != OUICHEFS_BLOCK_SIZE) {
+			ret = -1;
+			goto end;
+		}
+	}
+
+	ret = 0;
+
+	printf("Ref counter store: wrote %d blocks\n"
+		   "\tref counter size = %ld B\n",
+	   	   i, sizeof(struct ouichefs_ref_counter));
 
 end:
 	free(block);
@@ -238,6 +303,7 @@ static int write_bfree_blocks(int fd, struct ouichefs_superblock *sb)
 	char *block;
 	uint64_t *bfree, mask, line;
 	uint32_t nr_used = le32toh(sb->nr_istore_blocks) +
+		le32toh(sb->nr_rcstore_blocks) +
 		le32toh(sb->nr_ifree_blocks) +
 		le32toh(sb->nr_bfree_blocks) + 2;
 
@@ -357,6 +423,14 @@ int main(int argc, char **argv)
 	ret = write_inode_store(fd, sb);
 	if (ret != 0) {
 		perror("write_inode_store():");
+		ret = EXIT_FAILURE;
+		goto free_sb;
+	}
+
+	// Write the reference counters table
+	ret = write_ref_counter_store(fd, sb);
+	if (ret != 0) {
+		perror("write_ref_counter_store():");
 		ret = EXIT_FAILURE;
 		goto free_sb;
 	}
