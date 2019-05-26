@@ -143,6 +143,8 @@ static int ouichefs_dedup_scan_file(struct inode *inode, struct ouichefs_dedup_i
 					put_block(sbi, index->blocks[i]);
 					// Make the index points to the other block
 					index->blocks[i] = di.eq_block;
+					// Increment the ref counter of this block
+					inc_ref_count(sbi->rc_table, index->blocks[i]);
 				}
 			} else {
 				if ((dedup_info->block != current_block) && are_eq_blocks(sb, dedup_info->block, current_block, dedup_info->block_size, block_size)) {
