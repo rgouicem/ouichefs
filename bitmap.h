@@ -9,6 +9,7 @@
 
 #include <linux/bitmap.h>
 #include "ouichefs.h"
+#include "rc_table.h"
 
 /*
  * Return the first free bit (set to 1) in a given in-memory bitmap spanning
@@ -59,6 +60,7 @@ static inline uint32_t get_free_block(struct ouichefs_sb_info *sbi)
 	ret = get_first_free_bit(sbi->bfree_bitmap, sbi->nr_blocks);
 	if (ret) {
 		sbi->nr_free_blocks--;
+		inc_ref_count(sbi->rc_table, ret);
 		pr_debug("%s:%d: allocated block %u\n",
 			 __func__, __LINE__, ret);
 	}
@@ -102,6 +104,7 @@ static inline void put_block(struct ouichefs_sb_info *sbi, uint32_t bno)
 		return;
 
 	sbi->nr_free_blocks++;
+	dec_ref_count(sbi->rc_table, bno);
 	pr_debug("%s:%d: freed block %u\n",
 		 __func__, __LINE__, bno);
 }
