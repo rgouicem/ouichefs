@@ -98,6 +98,7 @@ static void ouichefs_put_super(struct super_block *sb)
 	struct ouichefs_sb_info *sbi = OUICHEFS_SB(sb);
 
 	if (sbi) {
+		kfree(sbi->rc_table);
 		kfree(sbi->ifree_bitmap);
 		kfree(sbi->bfree_bitmap);
 		kfree(sbi);
@@ -117,22 +118,42 @@ static int ouichefs_sync_fs(struct super_block *sb, int wait)
 		return -EIO;
 	disk_sb = (struct ouichefs_sb_info *)bh->b_data;
 
-	disk_sb->nr_blocks        = sbi->nr_blocks;
-	disk_sb->nr_inodes        = sbi->nr_inodes;
-	disk_sb->nr_istore_blocks = sbi->nr_istore_blocks;
-	disk_sb->nr_ifree_blocks  = sbi->nr_ifree_blocks;
-	disk_sb->nr_bfree_blocks  = sbi->nr_bfree_blocks;
-	disk_sb->nr_free_inodes   = sbi->nr_free_inodes;
-	disk_sb->nr_free_blocks   = sbi->nr_free_blocks;
+	disk_sb->nr_blocks         = sbi->nr_blocks;
+	disk_sb->nr_inodes         = sbi->nr_inodes;
+	disk_sb->nr_ref_counters   = sbi->nr_ref_counters;
+	disk_sb->nr_istore_blocks  = sbi->nr_istore_blocks;
+	disk_sb->nr_rcstore_blocks = sbi->nr_rcstore_blocks;
+	disk_sb->nr_ifree_blocks   = sbi->nr_ifree_blocks;
+	disk_sb->nr_bfree_blocks   = sbi->nr_bfree_blocks;
+	disk_sb->nr_free_inodes    = sbi->nr_free_inodes;
+	disk_sb->nr_free_blocks    = sbi->nr_free_blocks;
 
 	mark_buffer_dirty(bh);
 	if (wait)
 		sync_dirty_buffer(bh);
 	brelse(bh);
 
+	// Flush ref counters table
+	for (i = 0; i < sbi->nr_rcstore_blocks; i++) {
+		int idx = sbi->nr_istore_blocks + i + 1;
+
+		bh = sb_bread(sb, idx);
+		if (!bh)
+			return -EIO;
+
+		memcpy(bh->b_data,
+		       (void *)sbi->rc_table + i * OUICHEFS_BLOCK_SIZE,
+		       OUICHEFS_BLOCK_SIZE);
+
+		mark_buffer_dirty(bh);
+		if (wait)
+			sync_dirty_buffer(bh);
+		brelse(bh);
+	}
+
 	/* Flush free inodes bitmask */
 	for (i = 0; i < sbi->nr_ifree_blocks; i++) {
-		int idx = sbi->nr_istore_blocks + i + 1;
+		int idx = sbi->nr_istore_blocks + sbi->nr_rcstore_blocks + i + 1;
 
 		bh = sb_bread(sb, idx);
 		if (!bh)
@@ -150,7 +171,7 @@ static int ouichefs_sync_fs(struct super_block *sb, int wait)
 
 	/* Flush free blocks bitmask */
 	for (i = 0; i < sbi->nr_bfree_blocks; i++) {
-		int idx = sbi->nr_istore_blocks + sbi->nr_ifree_blocks + i + 1;
+		int idx = sbi->nr_istore_blocks + sbi->nr_rcstore_blocks + sbi->nr_ifree_blocks + i + 1;
 
 		bh = sb_bread(sb, idx);
 		if (!bh)
@@ -231,7 +252,9 @@ int ouichefs_fill_super(struct super_block *sb, void *data, int silent)
 	}
 	sbi->nr_blocks = csb->nr_blocks;
 	sbi->nr_inodes = csb->nr_inodes;
+	sbi->nr_ref_counters = csb->nr_ref_counters;
 	sbi->nr_istore_blocks = csb->nr_istore_blocks;
+	sbi->nr_rcstore_blocks = csb->nr_rcstore_blocks;
 	sbi->nr_ifree_blocks = csb->nr_ifree_blocks;
 	sbi->nr_bfree_blocks = csb->nr_bfree_blocks;
 	sbi->nr_free_inodes = csb->nr_free_inodes;
@@ -240,15 +263,37 @@ int ouichefs_fill_super(struct super_block *sb, void *data, int silent)
 
 	brelse(bh);
 
+	// Alloc and copy rc_table
+	sbi->rc_table = kzalloc(sbi->nr_rcstore_blocks * OUICHEFS_BLOCK_SIZE,
+					GFP_KERNEL);
+	if (!sbi->rc_table) {
+		ret = -ENOMEM;
+		goto free_sbi;
+	}
+	for (i = 0; i < sbi->nr_rcstore_blocks; i++) {
+		int idx = sbi->nr_istore_blocks + i + 1;
+
+		bh = sb_bread(sb, idx);
+		if (!bh) {
+			ret = -EIO;
+			goto free_rc_table;
+		}
+
+		memcpy((void *)sbi->rc_table + i * OUICHEFS_BLOCK_SIZE,
+			   bh->b_data, OUICHEFS_BLOCK_SIZE);
+
+		brelse(bh);
+	}
+
 	/* Alloc and copy ifree_bitmap */
 	sbi->ifree_bitmap = kzalloc(sbi->nr_ifree_blocks * OUICHEFS_BLOCK_SIZE,
 				    GFP_KERNEL);
 	if (!sbi->ifree_bitmap) {
 		ret = -ENOMEM;
-		goto free_sbi;
+		goto free_rc_table;
 	}
 	for (i = 0; i < sbi->nr_ifree_blocks; i++) {
-		int idx = sbi->nr_istore_blocks + i + 1;
+		int idx = sbi->nr_istore_blocks + sbi->nr_rcstore_blocks + i + 1;
 
 		bh = sb_bread(sb, idx);
 		if (!bh) {
@@ -270,7 +315,7 @@ int ouichefs_fill_super(struct super_block *sb, void *data, int silent)
 		goto free_ifree;
 	}
 	for (i = 0; i < sbi->nr_bfree_blocks; i++) {
-		int idx = sbi->nr_istore_blocks + sbi->nr_ifree_blocks + i + 1;
+		int idx = sbi->nr_istore_blocks + sbi->nr_rcstore_blocks + sbi->nr_ifree_blocks + i + 1;
 
 		bh = sb_bread(sb, idx);
 		if (!bh) {
@@ -305,6 +350,8 @@ free_bfree:
 	kfree(sbi->bfree_bitmap);
 free_ifree:
 	kfree(sbi->ifree_bitmap);
+free_rc_table:
+	kfree(sbi->rc_table);
 free_sbi:
 	kfree(sbi);
 release:
