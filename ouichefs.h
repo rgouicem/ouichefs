@@ -53,25 +53,36 @@ struct ouichefs_inode_info {
 	struct inode vfs_inode;
 };
 
+struct ouichefs_ref_counter {
+	uint32_t block;     // Number of the block referenced by this counter
+	uint32_t ref_count; // Number of references to this block
+};
+
 #define OUICHEFS_INODES_PER_BLOCK \
 	(OUICHEFS_BLOCK_SIZE / sizeof(struct ouichefs_inode))
+
+#define OUICHEFS_REF_COUNTERS_PER_BLOCK \
+	(OUICHEFS_BLOCK_SIZE / sizeof(struct ouichefs_ref_counter))
 
 
 struct ouichefs_sb_info {
 	uint32_t magic;	        /* Magic number */
 
-	uint32_t nr_blocks;      /* Total number of blocks (incl sb & inodes) */
-	uint32_t nr_inodes;      /* Total number of inodes */
+	uint32_t nr_blocks;       /* Total number of blocks (incl sb & inodes) */
+	uint32_t nr_inodes;       /* Total number of inodes */
+	uint32_t nr_ref_counters; // Total number of reference counters
 
-	uint32_t nr_istore_blocks;/* Number of inode store blocks */
-	uint32_t nr_ifree_blocks; /* Number of inode free bitmap blocks */
-	uint32_t nr_bfree_blocks; /* Number of block free bitmap blocks */
+	uint32_t nr_istore_blocks;  /* Number of inode store blocks */
+	uint32_t nr_rcstore_blocks; // Number of reference counters table blocks
+	uint32_t nr_ifree_blocks;   /* Number of inode free bitmap blocks */
+	uint32_t nr_bfree_blocks;   /* Number of block free bitmap blocks */
 
 	uint32_t nr_free_inodes;  /* Number of free inodes */
 	uint32_t nr_free_blocks;  /* Number of free blocks */
 
-	unsigned long *ifree_bitmap; /* In-memory free inodes bitmap */
-	unsigned long *bfree_bitmap; /* In-memory free blocks bitmap */
+	struct ouichefs_ref_counter *rc_table; // In-memory reference counters table
+	unsigned long *ifree_bitmap;           /* In-memory free inodes bitmap */
+	unsigned long *bfree_bitmap;           /* In-memory free blocks bitmap */
 };
 
 struct ouichefs_file_index_block {
