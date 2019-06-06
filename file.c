@@ -170,7 +170,7 @@ static int ouichefs_write_end(struct file *file, struct address_space *mapping,
 			index = (struct ouichefs_file_index_block *)
 				bh_index->b_data;
 
-			for (i = inode->i_blocks - 2; i < nr_blocks_old - 2;
+			for (i = inode->i_blocks - 1; i < nr_blocks_old - 1;
 			     i++) {
 				put_block(OUICHEFS_SB(sb), index->blocks[i]);
 				index->blocks[i] = 0;
