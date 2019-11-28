@@ -191,6 +191,7 @@ const struct address_space_operations ouichefs_aops = {
 };
 
 const struct file_operations ouichefs_file_ops = {
+	.llseek = generic_file_llseek,
 	.owner      = THIS_MODULE,
 	.read_iter  = generic_file_read_iter,
 	.write_iter = generic_file_write_iter
