@@ -93,23 +93,11 @@ static int ouichefs_write_inode(struct inode *inode,
 	return 0;
 }
 
-static void ouichefs_put_super(struct super_block *sb)
+static int sync_sb_info(struct super_block *sb, int wait)
 {
-	struct ouichefs_sb_info *sbi = OUICHEFS_SB(sb);
-
-	if (sbi) {
-		kfree(sbi->ifree_bitmap);
-		kfree(sbi->bfree_bitmap);
-		kfree(sbi);
-	}
-}
-
-static int ouichefs_sync_fs(struct super_block *sb, int wait)
-{
-	struct buffer_head *bh;
 	struct ouichefs_sb_info *sbi = OUICHEFS_SB(sb);
 	struct ouichefs_sb_info *disk_sb;
-	int i;
+	struct buffer_head *bh;
 
 	/* Flush superblock */
 	bh = sb_bread(sb, 0);
@@ -130,9 +118,18 @@ static int ouichefs_sync_fs(struct super_block *sb, int wait)
 		sync_dirty_buffer(bh);
 	brelse(bh);
 
+	return 0;
+}
+
+static int sync_ifree(struct super_block *sb, int wait)
+{
+	struct ouichefs_sb_info *sbi = OUICHEFS_SB(sb);
+	struct buffer_head *bh;
+	int i, idx;
+
 	/* Flush free inodes bitmask */
 	for (i = 0; i < sbi->nr_ifree_blocks; i++) {
-		int idx = sbi->nr_istore_blocks + i + 1;
+		idx = sbi->nr_istore_blocks + i + 1;
 
 		bh = sb_bread(sb, idx);
 		if (!bh)
@@ -148,9 +145,18 @@ static int ouichefs_sync_fs(struct super_block *sb, int wait)
 		brelse(bh);
 	}
 
+	return 0;
+}
+
+static int sync_bfree(struct super_block *sb, int wait)
+{
+	struct ouichefs_sb_info *sbi = OUICHEFS_SB(sb);
+	struct buffer_head *bh;
+	int i, idx;
+
 	/* Flush free blocks bitmask */
 	for (i = 0; i < sbi->nr_bfree_blocks; i++) {
-		int idx = sbi->nr_istore_blocks + sbi->nr_ifree_blocks + i + 1;
+		idx = sbi->nr_istore_blocks + sbi->nr_ifree_blocks + i + 1;
 
 		bh = sb_bread(sb, idx);
 		if (!bh)
@@ -165,6 +171,34 @@ static int ouichefs_sync_fs(struct super_block *sb, int wait)
 			sync_dirty_buffer(bh);
 		brelse(bh);
 	}
+
+	return 0;
+}
+
+static void ouichefs_put_super(struct super_block *sb)
+{
+	struct ouichefs_sb_info *sbi = OUICHEFS_SB(sb);
+
+	if (sbi) {
+		kfree(sbi->ifree_bitmap);
+		kfree(sbi->bfree_bitmap);
+		kfree(sbi);
+	}
+}
+
+static int ouichefs_sync_fs(struct super_block *sb, int wait)
+{
+	int ret = 0;
+
+	ret = sync_sb_info(sb, wait);
+	if (ret)
+		return ret;
+	ret = sync_ifree(sb, wait);
+	if (ret)
+		return ret;
+        ret = sync_bfree(sb, wait);
+	if (ret)
+		return ret;
 
 	return 0;
 }
