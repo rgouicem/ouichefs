@@ -7,6 +7,8 @@
 #ifndef _OUICHEFS_H
 #define _OUICHEFS_H
 
+#include <linux/fs.h>
+
 #define OUICHEFS_MAGIC  0x48434957
 
 #define OUICHEFS_SB_BLOCK_NR     0
