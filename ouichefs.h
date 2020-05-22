@@ -18,7 +18,7 @@
 
 
 /*
- * CowFS partition layout
+ * ouiche_fs partition layout
  *
  * +---------------+
  * |  superblock   |  1 block
