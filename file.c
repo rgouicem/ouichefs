@@ -149,6 +149,7 @@ static int ouichefs_write_end(struct file *file, struct address_space *mapping,
 		inode->i_blocks = inode->i_size / OUICHEFS_BLOCK_SIZE + 2;
 		inode->i_mtime = inode->i_ctime = current_time(inode);
 		mark_inode_dirty(inode);
+		ouichefs_sync_fs(sb, 0);
 
 		/* If file is smaller than before, free unused blocks */
 		if (nr_blocks_old > inode->i_blocks) {
