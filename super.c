@@ -186,7 +186,7 @@ static void ouichefs_put_super(struct super_block *sb)
 	}
 }
 
-static int ouichefs_sync_fs(struct super_block *sb, int wait)
+int ouichefs_sync_fs(struct super_block *sb, int wait)
 {
 	int ret = 0;
 

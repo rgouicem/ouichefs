@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/ioctl.h>
+#include <linux/fs.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdint.h>
@@ -313,6 +315,7 @@ int main(int argc, char **argv)
 	long int min_size;
 	struct stat stat_buf;
 	struct ouichefs_superblock *sb = NULL;
+	long int blk_size = 0;
 
 	if (argc != 2) {
 		usage(argv[0]);
@@ -332,6 +335,17 @@ int main(int argc, char **argv)
 		perror("fstat():");
 		ret = EXIT_FAILURE;
 		goto fclose;
+	}
+
+	/* Get block device size */
+	if ((stat_buf.st_mode & S_IFMT) == S_IFBLK) {
+		ret = ioctl(fd, BLKGETSIZE64, &blk_size);
+		if (ret != 0) {
+			perror("BLKGETSIZE64:");
+			ret = EXIT_FAILURE;
+			goto fclose;
+		}
+		stat_buf.st_size = blk_size;
 	}
 
 	/* Check if image is large enough */
