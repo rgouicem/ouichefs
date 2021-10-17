@@ -185,7 +185,7 @@ static struct inode *ouichefs_new_inode(struct inode *dir, mode_t mode)
 	ci->index_block = bno;
 
 	/* Initialize inode */
-	inode_init_owner(inode, dir, mode);
+	inode_init_owner(&init_user_ns, inode, dir, mode);
 	inode->i_blocks = 1;
 	if (S_ISDIR(mode)) {
 		inode->i_size = OUICHEFS_BLOCK_SIZE;
@@ -217,7 +217,7 @@ put_ino:
  *   - cleanup index block of the new inode
  *   - add new file/directory in parent index
  */
-static int ouichefs_create(struct inode *dir, struct dentry *dentry,
+static int ouichefs_create(struct user_namespace *mnt_userns, struct inode *dir, struct dentry *dentry,
 			   umode_t mode, bool excl)
 {
 	struct super_block *sb;
@@ -404,7 +404,7 @@ clean_inode:
 	return 0;
 }
 
-static int ouichefs_rename(struct inode *old_dir, struct dentry *old_dentry,
+static int ouichefs_rename(struct user_namespace *mnt_userns, struct inode *old_dir, struct dentry *old_dentry,
 			   struct inode *new_dir, struct dentry *new_dentry,
 			   unsigned int flags)
 {
@@ -516,10 +516,10 @@ relse_new:
 	return ret;
 }
 
-static int ouichefs_mkdir(struct inode *dir, struct dentry *dentry,
+static int ouichefs_mkdir(struct user_namespace *mnt_userns, struct inode *dir, struct dentry *dentry,
 			  umode_t mode)
 {
-	return ouichefs_create(dir, dentry, mode | S_IFDIR, 0);
+	return ouichefs_create(&init_user_ns, dir, dentry, mode | S_IFDIR, 0);
 }
 
 static int ouichefs_rmdir(struct inode *dir, struct dentry *dentry)
