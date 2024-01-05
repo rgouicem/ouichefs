@@ -73,9 +73,9 @@ brelse_index:
  * Called by the page cache to read a page from the physical disk and map it in
  * memory.
  */
-static int ouichefs_readpage(struct file *file, struct page *page)
+static void ouichefs_readahead(struct readahead_control *rac)
 {
-	return mpage_readpage(page, ouichefs_file_get_block);
+	mpage_readahead(rac, ouichefs_file_get_block);
 }
 
 /*
@@ -94,8 +94,8 @@ static int ouichefs_writepage(struct page *page, struct writeback_control *wbc)
  */
 static int ouichefs_write_begin(struct file *file,
 				struct address_space *mapping, loff_t pos,
-				unsigned int len, unsigned int flags,
-				struct page **pagep, void **fsdata)
+				unsigned int len, struct page **pagep,
+				void **fsdata)
 {
 	struct ouichefs_sb_info *sbi = OUICHEFS_SB(file->f_inode->i_sb);
 	int err;
@@ -113,7 +113,7 @@ static int ouichefs_write_begin(struct file *file,
 		return -ENOSPC;
 
 	/* prepare the write */
-	err = block_write_begin(mapping, pos, len, flags, pagep,
+	err = block_write_begin(mapping, pos, len, pagep,
 				ouichefs_file_get_block);
 	/* if this failed, reclaim newly allocated blocks */
 	if (err < 0) {
@@ -162,7 +162,7 @@ static int ouichefs_write_end(struct file *file, struct address_space *mapping,
 			/* Read index block to remove unused blocks */
 			bh_index = sb_bread(sb, ci->index_block);
 			if (!bh_index) {
-				pr_err("failed truncating '%s'. we just lost %lu blocks\n",
+				pr_err("failed truncating '%s'. we just lost %llu blocks\n",
 				       file->f_path.dentry->d_name.name,
 				       nr_blocks_old - inode->i_blocks);
 				goto end;
@@ -184,8 +184,8 @@ end:
 }
 
 const struct address_space_operations ouichefs_aops = {
-	.readpage    = ouichefs_readpage,
-	.writepage   = ouichefs_writepage,
+	.readahead = ouichefs_readahead,
+	.writepage = ouichefs_writepage,
 	.write_begin = ouichefs_write_begin,
 	.write_end   = ouichefs_write_end
 };

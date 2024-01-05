@@ -57,17 +57,21 @@ static int __init ouichefs_init(void)
 	ret = ouichefs_init_inode_cache();
 	if (ret) {
 		pr_err("inode cache creation failed\n");
-		goto end;
+		goto err;
 	}
 
 	ret = register_filesystem(&ouichefs_file_system_type);
 	if (ret) {
 		pr_err("register_filesystem() failed\n");
-		goto end;
+		goto err_inode;
 	}
 
 	pr_info("module loaded\n");
-end:
+	return 0;
+
+err_inode:
+	ouichefs_destroy_inode_cache();
+err:
 	return ret;
 }
 
