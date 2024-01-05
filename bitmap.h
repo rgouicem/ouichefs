@@ -42,8 +42,8 @@ static inline uint32_t get_free_inode(struct ouichefs_sb_info *sbi)
 	ret = get_first_free_bit(sbi->ifree_bitmap, sbi->nr_inodes);
 	if (ret) {
 		sbi->nr_free_inodes--;
-		pr_debug("%s:%d: allocated inode %u\n",
-			 __func__, __LINE__, ret);
+		pr_debug("%s:%d: allocated inode %u\n", __func__, __LINE__,
+			 ret);
 	}
 	return ret;
 }
@@ -59,8 +59,8 @@ static inline uint32_t get_free_block(struct ouichefs_sb_info *sbi)
 	ret = get_first_free_bit(sbi->bfree_bitmap, sbi->nr_blocks);
 	if (ret) {
 		sbi->nr_free_blocks--;
-		pr_debug("%s:%d: allocated block %u\n",
-			 __func__, __LINE__, ret);
+		pr_debug("%s:%d: allocated block %u\n", __func__, __LINE__,
+			 ret);
 	}
 	return ret;
 }
@@ -89,8 +89,7 @@ static inline void put_inode(struct ouichefs_sb_info *sbi, uint32_t ino)
 		return;
 
 	sbi->nr_free_inodes++;
-	pr_debug("%s:%d: freed inode %u\n",
-		 __func__, __LINE__, ino);
+	pr_debug("%s:%d: freed inode %u\n", __func__, __LINE__, ino);
 }
 
 /*
@@ -102,8 +101,7 @@ static inline void put_block(struct ouichefs_sb_info *sbi, uint32_t bno)
 		return;
 
 	sbi->nr_free_blocks++;
-	pr_debug("%s:%d: freed block %u\n",
-		 __func__, __LINE__, bno);
+	pr_debug("%s:%d: freed block %u\n", __func__, __LINE__, bno);
 }
 
-#endif	/* _OUICHEFS_BITMAP_H */
+#endif /* _OUICHEFS_BITMAP_H */

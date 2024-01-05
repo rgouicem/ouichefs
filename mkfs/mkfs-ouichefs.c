@@ -9,45 +9,45 @@
 #include <endian.h>
 #include <string.h>
 
-#define OUICHEFS_MAGIC  0x48434957
+#define OUICHEFS_MAGIC 0x48434957
 
-#define OUICHEFS_SB_BLOCK_NR     0
+#define OUICHEFS_SB_BLOCK_NR 0
 
-#define OUICHEFS_BLOCK_SIZE       (1 << 12)  /* 4 KiB */
-#define OUICHEFS_MAX_FILESIZE     (1 << 22)  /* 4 MiB */
-#define OUICHEFS_FILENAME_LEN            28
-#define OUICHEFS_MAX_SUBFILES           128
-
+#define OUICHEFS_BLOCK_SIZE (1 << 12) /* 4 KiB */
+#define OUICHEFS_MAX_FILESIZE (1 << 22) /* 4 MiB */
+#define OUICHEFS_FILENAME_LEN 28
+#define OUICHEFS_MAX_SUBFILES 128
 
 struct ouichefs_inode {
-	mode_t   i_mode;	  /* File mode */
-	uint32_t i_uid;           /* Owner id */
-	uint32_t i_gid;		  /* Group id */
-	uint32_t i_size;	  /* Size in bytes */
-	uint32_t i_ctime;	  /* Inode change time */
-	uint32_t i_atime;	  /* Access time */
-	uint32_t i_mtime;	  /* Modification time */
-	uint32_t i_blocks;	  /* Block count (subdir count for directories) */
-	uint32_t i_nlink;	  /* Hard links count */
-	uint32_t index_block;	  /* Block with list of blocks for this file */
+	mode_t i_mode; /* File mode */
+	uint32_t i_uid; /* Owner id */
+	uint32_t i_gid; /* Group id */
+	uint32_t i_size; /* Size in bytes */
+	uint32_t i_ctime; /* Inode change time */
+	uint32_t i_atime; /* Access time */
+	uint32_t i_mtime; /* Modification time */
+	uint32_t i_blocks; /* Block count (subdir count for directories) */
+	uint32_t i_nlink; /* Hard links count */
+	uint32_t index_block; /* Block with list of blocks for this file */
 };
 
-#define OUICHEFS_INODES_PER_BLOCK (OUICHEFS_BLOCK_SIZE / sizeof(struct ouichefs_inode))
+#define OUICHEFS_INODES_PER_BLOCK \
+	(OUICHEFS_BLOCK_SIZE / sizeof(struct ouichefs_inode))
 
 struct ouichefs_superblock {
-	uint32_t magic;		  /* Magic number */
+	uint32_t magic; /* Magic number */
 
-	uint32_t nr_blocks;	  /* Total number of blocks (incl sb & inodes) */
-	uint32_t nr_inodes;       /* Total number of inodes */
+	uint32_t nr_blocks; /* Total number of blocks (incl sb & inodes) */
+	uint32_t nr_inodes; /* Total number of inodes */
 
-	uint32_t nr_istore_blocks;/* Number of inode store blocks */
+	uint32_t nr_istore_blocks; /* Number of inode store blocks */
 	uint32_t nr_ifree_blocks; /* Number of free inodes bitmask blocks */
 	uint32_t nr_bfree_blocks; /* Number of free blocks bitmask blocks */
 
-	uint32_t nr_free_inodes;  /* Number of free inodes */
-	uint32_t nr_free_blocks;  /* Number of free blocks */
+	uint32_t nr_free_inodes; /* Number of free inodes */
+	uint32_t nr_free_blocks; /* Number of free blocks */
 
-	char padding[4064];       /* Padding to match block size */
+	char padding[4064]; /* Padding to match block size */
 };
 
 struct ouichefs_file_index_block {
@@ -98,7 +98,8 @@ static struct ouichefs_superblock *write_superblock(int fd, struct stat *fstats)
 	nr_istore_blocks = idiv_ceil(nr_inodes, OUICHEFS_INODES_PER_BLOCK);
 	nr_ifree_blocks = idiv_ceil(nr_inodes, OUICHEFS_BLOCK_SIZE * 8);
 	nr_bfree_blocks = idiv_ceil(nr_blocks, OUICHEFS_BLOCK_SIZE * 8);
-	nr_data_blocks = nr_blocks - 1 - nr_istore_blocks - nr_ifree_blocks - nr_bfree_blocks;
+	nr_data_blocks = nr_blocks - 1 - nr_istore_blocks - nr_ifree_blocks -
+			 nr_bfree_blocks;
 
 	memset(sb, 0, sizeof(struct ouichefs_superblock));
 	sb->magic = htole32(OUICHEFS_MAGIC);
@@ -124,10 +125,9 @@ static struct ouichefs_superblock *write_superblock(int fd, struct stat *fstats)
 	       "\tnr_bfree_blocks=%u\n"
 	       "\tnr_free_inodes=%u\n"
 	       "\tnr_free_blocks=%u\n",
-	       sizeof(struct ouichefs_superblock),
-	       sb->magic, sb->nr_blocks, sb->nr_inodes, sb->nr_istore_blocks,
-	       sb->nr_ifree_blocks, sb->nr_bfree_blocks, sb->nr_free_inodes,
-	       sb->nr_free_blocks);
+	       sizeof(struct ouichefs_superblock), sb->magic, sb->nr_blocks,
+	       sb->nr_inodes, sb->nr_istore_blocks, sb->nr_ifree_blocks,
+	       sb->nr_bfree_blocks, sb->nr_free_inodes, sb->nr_free_blocks);
 
 	return sb;
 }
@@ -149,12 +149,11 @@ static int write_inode_store(int fd, struct ouichefs_superblock *sb)
 	/* Root inode (inode 0) */
 	inode = (struct ouichefs_inode *)block;
 	first_data_block = 1 + le32toh(sb->nr_bfree_blocks) +
-		le32toh(sb->nr_ifree_blocks) +
-		le32toh(sb->nr_istore_blocks);
-	inode->i_mode = htole32(S_IFDIR |
-				S_IRUSR | S_IRGRP | S_IROTH |
-				S_IWUSR | S_IWGRP |
-				S_IXUSR | S_IXGRP | S_IXOTH);
+			   le32toh(sb->nr_ifree_blocks) +
+			   le32toh(sb->nr_istore_blocks);
+	inode->i_mode =
+		htole32(S_IFDIR | S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR |
+			S_IWGRP | S_IXUSR | S_IXGRP | S_IXOTH);
 	inode->i_uid = 0;
 	inode->i_gid = 0;
 	inode->i_size = htole32(OUICHEFS_BLOCK_SIZE);
@@ -199,7 +198,7 @@ static int write_ifree_blocks(int fd, struct ouichefs_superblock *sb)
 	block = malloc(OUICHEFS_BLOCK_SIZE);
 	if (!block)
 		return -1;
-	ifree = (uint64_t *) block;
+	ifree = (uint64_t *)block;
 
 	/* Set all bits to 1 */
 	memset(ifree, 0xff, OUICHEFS_BLOCK_SIZE);
@@ -238,8 +237,8 @@ static int write_bfree_blocks(int fd, struct ouichefs_superblock *sb)
 	char *block;
 	uint64_t *bfree, mask, line;
 	uint32_t nr_used = le32toh(sb->nr_istore_blocks) +
-		le32toh(sb->nr_ifree_blocks) +
-		le32toh(sb->nr_bfree_blocks) + 2;
+			   le32toh(sb->nr_ifree_blocks) +
+			   le32toh(sb->nr_bfree_blocks) + 2;
 
 	block = malloc(OUICHEFS_BLOCK_SIZE);
 	if (!block)
@@ -301,8 +300,8 @@ static int write_data_blocks(int fd, struct ouichefs_superblock *sb)
 	/* 	return -1; */
 	/* memset(foo, 0, OUICHEFS_BLOCK_SIZE); */
 
-/* end: */
-/* 	free(foo); */
+	/* end: */
+	/* 	free(foo); */
 
 	return ret;
 }
@@ -339,8 +338,7 @@ int main(int argc, char **argv)
 	if (stat_buf.st_size <= min_size) {
 		fprintf(stderr,
 			"File is not large enough (size=%ld, min size=%ld)\n",
-			stat_buf.st_size,
-			min_size);
+			stat_buf.st_size, min_size);
 		ret = EXIT_FAILURE;
 		goto fclose;
 	}

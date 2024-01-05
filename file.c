@@ -60,7 +60,7 @@ static int ouichefs_file_get_block(struct inode *inode, sector_t iblock,
 		bno = index->blocks[iblock];
 	}
 
-	/* Map the physical block to to the given buffer_head */
+	/* Map the physical block to the given buffer_head */
 	map_bh(bh_result, sb, bno);
 
 brelse_index:
@@ -168,7 +168,7 @@ static int ouichefs_write_end(struct file *file, struct address_space *mapping,
 				goto end;
 			}
 			index = (struct ouichefs_file_index_block *)
-				bh_index->b_data;
+					bh_index->b_data;
 
 			for (i = inode->i_blocks - 1; i < nr_blocks_old - 1;
 			     i++) {
@@ -187,12 +187,12 @@ const struct address_space_operations ouichefs_aops = {
 	.readahead = ouichefs_readahead,
 	.writepage = ouichefs_writepage,
 	.write_begin = ouichefs_write_begin,
-	.write_end   = ouichefs_write_end
+	.write_end = ouichefs_write_end
 };
 
 const struct file_operations ouichefs_file_ops = {
-	.owner      = THIS_MODULE,
-	.llseek     = generic_file_llseek,
-	.read_iter  = generic_file_read_iter,
+	.owner = THIS_MODULE,
+	.llseek = generic_file_llseek,
+	.read_iter = generic_file_read_iter,
 	.write_iter = generic_file_write_iter
 };

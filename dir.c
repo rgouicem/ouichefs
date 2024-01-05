@@ -54,8 +54,8 @@ static int ouichefs_iterate(struct file *dir, struct dir_context *ctx)
 		f = &dblock->files[i];
 		if (!f->inode)
 			break;
-		if (!dir_emit(ctx, f->filename, OUICHEFS_FILENAME_LEN,
-			      f->inode, DT_UNKNOWN))
+		if (!dir_emit(ctx, f->filename, OUICHEFS_FILENAME_LEN, f->inode,
+			      DT_UNKNOWN))
 			break;
 		ctx->pos++;
 	}

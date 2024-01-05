@@ -272,8 +272,8 @@ static int ouichefs_create(struct mnt_idmap *idmap, struct inode *dir,
 		if (dblock->files[i].inode == 0)
 			break;
 	dblock->files[i].inode = inode->i_ino;
-	strncpy(dblock->files[i].filename,
-		dentry->d_name.name, OUICHEFS_FILENAME_LEN);
+	strscpy(dblock->files[i].filename, dentry->d_name.name,
+		OUICHEFS_FILENAME_LEN);
 	mark_buffer_dirty(bh);
 	brelse(bh);
 
@@ -336,11 +336,9 @@ static int ouichefs_unlink(struct inode *dir, struct dentry *dentry)
 
 	/* Remove file from parent directory */
 	if (f_id != OUICHEFS_MAX_SUBFILES - 1)
-		memmove(dir_block->files + f_id,
-			dir_block->files + f_id + 1,
+		memmove(dir_block->files + f_id, dir_block->files + f_id + 1,
 			(nr_subs - f_id - 1) * sizeof(struct ouichefs_file));
-	memset(&dir_block->files[nr_subs - 1],
-	       0, sizeof(struct ouichefs_file));
+	memset(&dir_block->files[nr_subs - 1], 0, sizeof(struct ouichefs_file));
 	mark_buffer_dirty(bh);
 	brelse(bh);
 
@@ -365,7 +363,7 @@ static int ouichefs_unlink(struct inode *dir, struct dentry *dentry)
 	for (i = 0; i < inode->i_blocks - 1; i++) {
 		char *block;
 
-		if(!file_block->blocks[i])
+		if (!file_block->blocks[i])
 			continue;
 
 		put_block(sbi, file_block->blocks[i]);
@@ -392,9 +390,8 @@ clean_inode:
 	i_uid_write(inode, 0);
 	i_gid_write(inode, 0);
 	inode->i_mode = 0;
-	inode->i_ctime.tv_sec =
-		inode->i_mtime.tv_sec =
-		inode->i_atime.tv_sec = 0;
+	inode->i_ctime.tv_sec = inode->i_mtime.tv_sec = inode->i_atime.tv_sec =
+		0;
 	mark_inode_dirty(inode);
 
 	/* Free inode and index block from bitmap */
@@ -448,9 +445,8 @@ static int ouichefs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	}
 	/* if old_dir == new_dir, just rename entry */
 	if (old_dir == new_dir) {
-		strncpy(dir_block->files[f_pos].filename,
-			new_dentry->d_name.name,
-			OUICHEFS_FILENAME_LEN);
+		strscpy(dir_block->files[f_pos].filename,
+			new_dentry->d_name.name, OUICHEFS_FILENAME_LEN);
 		mark_buffer_dirty(bh_new);
 		ret = 0;
 		goto relse_new;
@@ -464,15 +460,14 @@ static int ouichefs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 
 	/* insert in new parent directory */
 	dir_block->files[new_pos].inode = src->i_ino;
-	strncpy(dir_block->files[new_pos].filename,
-		new_dentry->d_name.name,
+	strscpy(dir_block->files[new_pos].filename, new_dentry->d_name.name,
 		OUICHEFS_FILENAME_LEN);
 	mark_buffer_dirty(bh_new);
 	brelse(bh_new);
 
 	/* Update new parent inode metadata */
-	new_dir->i_atime = new_dir->i_ctime
-		= new_dir->i_mtime = current_time(new_dir);
+	new_dir->i_atime = new_dir->i_ctime = new_dir->i_mtime =
+		current_time(new_dir);
 	if (S_ISDIR(src->i_mode))
 		inode_inc_link_count(new_dir);
 	mark_inode_dirty(new_dir);
@@ -493,18 +488,15 @@ static int ouichefs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 
 	/* Remove file from old parent directory */
 	if (f_id != OUICHEFS_MAX_SUBFILES - 1)
-		memmove(dir_block->files + f_id,
-			dir_block->files + f_id + 1,
+		memmove(dir_block->files + f_id, dir_block->files + f_id + 1,
 			(nr_subs - f_id - 1) * sizeof(struct ouichefs_file));
-	memset(&dir_block->files[nr_subs - 1],
-	       0, sizeof(struct ouichefs_file));
+	memset(&dir_block->files[nr_subs - 1], 0, sizeof(struct ouichefs_file));
 	mark_buffer_dirty(bh_old);
 	brelse(bh_old);
 
 	/* Update old parent inode metadata */
-	old_dir->i_atime = old_dir->i_ctime
-		= old_dir->i_mtime
-		= current_time(old_dir);
+	old_dir->i_atime = old_dir->i_ctime = old_dir->i_mtime =
+		current_time(old_dir);
 	if (S_ISDIR(src->i_mode))
 		inode_dec_link_count(old_dir);
 	mark_inode_dirty(old_dir);
@@ -550,7 +542,7 @@ static const struct inode_operations ouichefs_inode_ops = {
 	.lookup = ouichefs_lookup,
 	.create = ouichefs_create,
 	.unlink = ouichefs_unlink,
-	.mkdir  = ouichefs_mkdir,
-	.rmdir  = ouichefs_rmdir,
+	.mkdir = ouichefs_mkdir,
+	.rmdir = ouichefs_rmdir,
 	.rename = ouichefs_rename,
 };

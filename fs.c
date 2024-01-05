@@ -21,8 +21,8 @@ struct dentry *ouichefs_mount(struct file_system_type *fs_type, int flags,
 {
 	struct dentry *dentry = NULL;
 
-	dentry = mount_bdev(fs_type, flags, dev_name, data,
-			    ouichefs_fill_super);
+	dentry =
+		mount_bdev(fs_type, flags, dev_name, data, ouichefs_fill_super);
 	if (IS_ERR(dentry))
 		pr_err("'%s' mount failure\n", dev_name);
 	else
@@ -91,7 +91,6 @@ static void __exit ouichefs_exit(void)
 module_init(ouichefs_init);
 module_exit(ouichefs_exit);
 
-
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Redha Gouicem, <redha.gouicem@lip6.fr>");
+MODULE_AUTHOR("Redha Gouicem, <redha.gouicem@rwth-aachen.de>");
 MODULE_DESCRIPTION("ouichefs, a simple educational filesystem for Linux");
