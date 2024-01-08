@@ -19,7 +19,7 @@
 /*
  * Map the buffer_head passed in argument with the iblock-th block of the file
  * represented by inode. If the requested block is not allocated and create is
- * true,  allocate a new block on disk and map it.
+ * true, allocate a new block on disk and map it.
  */
 static int ouichefs_file_get_block(struct inode *inode, sector_t iblock,
 				   struct buffer_head *bh_result, int create)
@@ -29,7 +29,6 @@ static int ouichefs_file_get_block(struct inode *inode, sector_t iblock,
 	struct ouichefs_inode_info *ci = OUICHEFS_INODE(inode);
 	struct ouichefs_file_index_block *index;
 	struct buffer_head *bh_index;
-	bool alloc = false;
 	int ret = 0, bno;
 
 	/* If block number exceeds filesize, fail */
@@ -47,15 +46,16 @@ static int ouichefs_file_get_block(struct inode *inode, sector_t iblock,
 	 * allocate it. Else, get the physical block number.
 	 */
 	if (index->blocks[iblock] == 0) {
-		if (!create)
-			return 0;
+		if (!create) {
+			ret = 0;
+			goto brelse_index;
+		}
 		bno = get_free_block(sbi);
 		if (!bno) {
 			ret = -ENOSPC;
 			goto brelse_index;
 		}
 		index->blocks[iblock] = bno;
-		alloc = true;
 	} else {
 		bno = index->blocks[iblock];
 	}
