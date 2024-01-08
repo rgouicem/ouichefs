@@ -43,7 +43,7 @@ These two bitmaps track if inodes/blocks are used or not.
 The remainder of the partition is used to store actual data on disk.
 
 ### Data structure relations in the Linux kernel
-![Linux VFS](https://raw.githubusercontent.com/rgouicem/ouichefs/v6.5.7/docs/vfs_struct_relations.png)
+![Linux VFS](docs/vfs_struct_relations.png)
 
 ## Roadmap
 ### Current features
