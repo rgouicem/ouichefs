@@ -242,6 +242,7 @@ static int ouichefs_create(struct mnt_idmap *idmap, struct inode *dir,
 
 	/* Check if parent directory is full */
 	if (dblock->files[OUICHEFS_MAX_SUBFILES - 1].inode != 0) {
+		// TODO: run cleaning routine here?
 		ret = -EMLINK;
 		goto end;
 	}
@@ -438,7 +439,7 @@ static int ouichefs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 			    new_dentry->d_name.name,
 			    OUICHEFS_FILENAME_LEN) == 0) {
 			ret = -EEXIST;
-			goto relse_new;
+			goto release_new;
 		}
 		if (new_pos < 0 && dir_block->files[i].inode == 0)
 			new_pos = i;
@@ -449,13 +450,13 @@ static int ouichefs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 			new_dentry->d_name.name, OUICHEFS_FILENAME_LEN);
 		mark_buffer_dirty(bh_new);
 		ret = 0;
-		goto relse_new;
+		goto release_new;
 	}
 
 	/* If new directory is empty, fail */
 	if (new_pos < 0) {
 		ret = -EMLINK;
-		goto relse_new;
+		goto release_new;
 	}
 
 	/* insert in new parent directory */
@@ -488,6 +489,8 @@ static int ouichefs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 
 	/* Remove file from old parent directory */
 	if (f_id != OUICHEFS_MAX_SUBFILES - 1)
+		// below does [files].remove_at_index(f_id)
+		// what if f_id == -1? (possible if file not found - but if the file is not found, we should not be here -> undefined behaviour?)
 		memmove(dir_block->files + f_id, dir_block->files + f_id + 1,
 			(nr_subs - f_id - 1) * sizeof(struct ouichefs_file));
 	memset(&dir_block->files[nr_subs - 1], 0, sizeof(struct ouichefs_file));
@@ -503,7 +506,7 @@ static int ouichefs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 
 	return 0;
 
-relse_new:
+release_new:
 	brelse(bh_new);
 	return ret;
 }
@@ -522,6 +525,7 @@ static int ouichefs_rmdir(struct inode *dir, struct dentry *dentry)
 	struct ouichefs_dir_block *dblock;
 
 	/* If the directory is not empty, fail */
+	// QUESTION: you can't remove a directory if it's not empty? why not recursive
 	if (inode->i_nlink > 2)
 		return -ENOTEMPTY;
 	bh = sb_bread(sb, OUICHEFS_INODE(inode)->index_block);

@@ -2,10 +2,12 @@ BIN ?= mkfs.ouichefs
 IMG ?= test.img
 IMGSIZE ?= 50
 
+KERNSRC ?= ../../linux
+
 all: ${BIN}
 
 ${BIN}: mkfs-ouichefs.c
-	gcc -Wall -o $@ $<
+	gcc -I${KERNSRC}  -Wall -o $@ $<
 
 img: ${BIN}
 	rm -rf ${IMG}

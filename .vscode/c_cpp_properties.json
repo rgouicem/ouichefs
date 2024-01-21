@@ -1,0 +1,29 @@
+{
+  "configurations": [
+    {
+      "name": "Linux Modules",
+      "includePath": [
+        "${workspaceFolder}/**",
+        "${workspaceFolder}/../linux/include",
+        "${workspaceFolder}/../linux/arch/arm64/include",
+        "${workspaceFolder}/../linux/arch/arm64/include/generated"
+      ],
+      "forcedInclude": [
+        "${workspaceFolder}/../linux/include/generated/autoconf.h"
+      ],
+      "defines": [
+        "__KERNEL__",
+        "LINUX",
+        "MODULE"
+      ],
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "intelliSenseMode": "macos-clang-arm64",
+      "dotConfig": "${workspaceFolder}/../linux/.config",
+      "browse": {
+        "limitSymbolsToIncludedHeaders": true
+      }
+    }
+  ],
+  "version": 4
+}
