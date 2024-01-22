@@ -335,7 +335,7 @@ int main(int argc, char **argv)
 
 	/* Check if image is large enough */
 	min_size = 100 * OUICHEFS_BLOCK_SIZE;
-	if (stat_buf.st_size <= min_size) {
+	if (stat_buf.st_size < min_size) {
 		fprintf(stderr,
 			"File is not large enough (size=%ld, min size=%ld)\n",
 			stat_buf.st_size, min_size);
