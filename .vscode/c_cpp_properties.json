@@ -4,6 +4,7 @@
       "name": "Linux Modules",
       "includePath": [
         "${workspaceFolder}/**",
+        "${workspaceFolder}/../linux",
         "${workspaceFolder}/../linux/include",
         "${workspaceFolder}/../linux/arch/arm64/include",
         "${workspaceFolder}/../linux/arch/arm64/include/generated"

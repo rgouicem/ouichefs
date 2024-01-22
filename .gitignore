@@ -53,4 +53,4 @@ Mkfile.old
 dkms.conf
 
 # Other
-mkfs/test.img
+mkfs/*.img
