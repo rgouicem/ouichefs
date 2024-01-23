@@ -393,6 +393,7 @@ clean_inode:
 	inode->i_mode = 0;
 	inode->i_ctime.tv_sec = inode->i_mtime.tv_sec = inode->i_atime.tv_sec =
 		0;
+	inode_dec_link_count(inode);
 	mark_inode_dirty(inode);
 
 	/* Free inode and index block from bitmap */
