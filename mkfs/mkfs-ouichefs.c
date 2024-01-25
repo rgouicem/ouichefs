@@ -317,7 +317,7 @@ int main(int argc, char **argv)
 	struct stat stat_buf;
 	struct ouichefs_superblock *sb = NULL;
 
-	if (argc != 2) {
+	if (argc != 2 || argv[1][0] == '-') {
 		usage(argv[0]);
 		return EXIT_FAILURE;
 	}
