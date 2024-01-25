@@ -1,5 +1,6 @@
 obj-m += ouichefs.o
-ouichefs-objs := fs.o super.o inode.o file.o dir.o
+obj-m += wich_default.o
+ouichefs-objs := fs.o super.o inode.o file.o dir.o eviction_policy.o
 
 KERNELDIR ?= ../linux
 VM_SHARED_DIR ?= ../linux_kernel_programming/vm/vm_files/share
@@ -47,7 +48,7 @@ debug:
 	make -C $(KERNELDIR) M=$(PWD) ccflags-y+="-DDEBUG -g" modules
 
 install:
-	cp ouichefs.ko $(VM_SHARED_DIR)
+	cp *.ko $(VM_SHARED_DIR)
 
 clean:
 	make -C $(KERNELDIR) M=$(PWD) clean
