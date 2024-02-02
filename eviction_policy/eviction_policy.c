@@ -3,14 +3,26 @@
 
 #include "eviction_policy.h"
 
-void no_op(void)
+int clean_dir_placeholder(struct super_block *sb, struct ouichefs_file *files)
 {
+	pr_info("clean_dir_placeholder called\n");
+	pr_info("got superblock: %s\n", sb->s_id);
+
+	return 0;
+}
+
+int clean_partition_placeholder(struct super_block *sb)
+{
+	pr_info("clean_partition_placeholder called\n");
+	pr_info("got superblock: %s\n", sb->s_id);
+
+	return 0;
 }
 
 struct ouichefs_eviction_policy default_policy = {
 	.name = "default",
-	.clean_partition = no_op,
-	.clean_dir = no_op,
+	.clean_partition = clean_partition_placeholder,
+	.clean_dir = clean_dir_placeholder,
 	.list_head = LIST_HEAD_INIT(default_policy.list_head),
 };
 

@@ -43,6 +43,49 @@ then you can use the filesystem as usual
 
 `cd /mnt/disk`
 
+### Interacting with the filesystem
+
+#### Hot-swappable Eviction Policies
+
+Eviction policies that decide which files should be removed can be implemented in other kernel modules.
+Such module has to have a `struct ouichefs_eviction_policy`
+and then register it using the functions from [`eviction_policy.h`](eviction_policy/eviction_policy.h).
+
+After inserting the module, the eviction policy can be changed by writing the name
+of the policy to `/proc/ouiche/eviction`.
+
+```bash
+echo -n "lru" > /proc/ouiche/eviction
+```
+
+List of registered eviction policies can be found in also `/proc/ouiche/eviction`.
+
+```bash
+cat /proc/ouiche/eviction
+Following eviction policies are available:
+...
+```
+
+#### Manual eviction
+
+ouiche_fs frees up space automatically, but you can also run the current eviction policy manually.
+
+Because there can be multiple partitions using ouiche_fs, you need to specify the partition you want to evict from.
+
+First list all the partitions:
+
+```bash
+cat /proc/ouiche/partitions
+Following partitions use ouiche_fs:
+0:/dev/loop1
+```
+
+Then, you clean the partition by writing its name to `/proc/ouiche/clean`.
+
+```bash
+echo -n "0:/dev/loop1" > /proc/ouiche/clean
+```
+
 ## Design
 
 This filesystem does not provide any fancy feature to ease understanding.

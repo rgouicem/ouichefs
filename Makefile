@@ -1,6 +1,6 @@
 obj-m += ouichefs.o
 obj-m += wich_default.o
-ouichefs-objs := fs.o super.o inode.o file.o dir.o eviction_policy.o
+ouichefs-objs := fs.o super.o inode.o file.o dir.o eviction_policy/eviction_policy.o
 
 KERNELDIR ?= ../linux
 VM_SHARED_DIR ?= ../linux_kernel_programming/vm/vm_files/share
@@ -43,6 +43,9 @@ endif
 
 all:
 	make -C $(KERNELDIR) M=$(PWD) modules
+
+eviction_policy/eviction_policy.o: eviction_policy/eviction_policy.c
+	$(CC) $(CFLAGS) -c $< -o $@
 
 debug:
 	make -C $(KERNELDIR) M=$(PWD) ccflags-y+="-DDEBUG -g" modules

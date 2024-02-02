@@ -15,6 +15,7 @@
 
 #include "ouichefs.h"
 #include "bitmap.h"
+#include "eviction_policy/eviction_policy.h"
 
 /*
  * Map the buffer_head passed in argument with the iblock-th block of the file
@@ -136,6 +137,8 @@ static int ouichefs_write_end(struct file *file, struct address_space *mapping,
 	struct inode *inode = file->f_inode;
 	struct ouichefs_inode_info *ci = OUICHEFS_INODE(inode);
 	struct super_block *sb = inode->i_sb;
+	struct ouichefs_sb_info *sbi = OUICHEFS_SB(sb);
+	int percent_free;
 
 	/* Complete the write() */
 	ret = generic_write_end(file, mapping, pos, len, copied, page, fsdata);
@@ -180,6 +183,16 @@ static int ouichefs_write_end(struct file *file, struct address_space *mapping,
 		}
 	}
 end:
+	percent_free = 100 * sbi->nr_free_blocks / sbi->nr_blocks;
+
+	pr_info("free blocks: %u, total blocks: %u, percent free: %d\n",
+		sbi->nr_free_blocks, sbi->nr_blocks, percent_free);
+
+	if (percent_free < PERCENT_BLOCKS_FREE) {
+		pr_info("cleaning partition\n");
+		current_policy->clean_partition(sb);
+	}
+
 	return ret;
 }
 

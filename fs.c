@@ -14,62 +14,16 @@
 #include <linux/seq_file.h>
 
 #include "ouichefs.h"
-#include "eviction_policy.h"
+#include "eviction_policy/eviction_policy.h"
+
+// procfs operations
+#include "procfs_ops/evictions.h"
+#include "procfs_ops/partitions.h"
+#include "procfs_ops/clean.h"
 
 // MARK: - procfs
 
 struct proc_dir_entry *dir;
-
-static int evictions_show(struct seq_file *m, void *v)
-{
-	seq_printf(m, "TBA: list of registered eviction policies\n");
-
-	// print list length
-
-	struct ouichefs_eviction_policy *policy;
-
-	list_for_each_entry(policy, &default_policy.list_head, list_head) {
-		seq_printf(m, "%s\n", policy->name);
-	}
-
-	return 0;
-}
-
-static int evictions_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, evictions_show, NULL);
-}
-
-static ssize_t evictions_proc_write(struct file *s, const char __user *buf,
-				    size_t size, loff_t *ppos)
-{
-	// we expect a policy name, so we know the maximum size
-	char input_buffer[POLICY_NAME_LEN];
-
-	if (size > POLICY_NAME_LEN) {
-		pr_err("Policy name too long. Maximum length is %d\n",
-		       POLICY_NAME_LEN);
-		return -EINVAL;
-	}
-
-	if (copy_from_user(input_buffer, buf, size))
-		return -EFAULT;
-
-	pr_info("Received policy name: %s\n", input_buffer);
-
-	if (set_eviction_policy(input_buffer))
-		return -EINVAL;
-
-	return size;
-}
-
-static struct proc_ops dcache_proc_ops = {
-	.proc_open = evictions_open,
-	.proc_read = seq_read,
-	.proc_lseek = seq_lseek,
-	.proc_release = single_release,
-	.proc_write = evictions_proc_write,
-};
 
 // MARK: - Filesystem operations
 
@@ -87,6 +41,13 @@ struct dentry *ouichefs_mount(struct file_system_type *fs_type, int flags,
 		pr_err("'%s' mount failure\n", dev_name);
 	else
 		pr_info("'%s' mount success\n", dev_name);
+
+	// add the dentry to the list
+	struct mount_item *item =
+		kmalloc(sizeof(struct mount_item), GFP_KERNEL);
+	item->dentry = dentry;
+	item->name = dev_name;
+	list_add_tail(&item->list, &first.list);
 
 	return dentry;
 }
@@ -109,6 +70,8 @@ static struct file_system_type ouichefs_file_system_type = {
 	.fs_flags = FS_REQUIRES_DEV,
 	.next = NULL,
 };
+
+// MARK: - Module init and exit
 
 static int __init ouichefs_init(void)
 {
@@ -133,8 +96,18 @@ static int __init ouichefs_init(void)
 		goto err_inode;
 	}
 
-	if (!proc_create("eviction", 0, dir, &dcache_proc_ops)) {
+	if (!proc_create("eviction", 0, dir, &evictions_proc_ops)) {
 		pr_err("Failed to create eviction procfs entry\n");
+		goto err_procfs;
+	}
+
+	if (!proc_create("partitions", 0, dir, &partitions_proc_ops)) {
+		pr_err("Failed to create partitions procfs entry\n");
+		goto err_procfs;
+	}
+
+	if (!proc_create("clean", 0, dir, &clean_proc_ops)) {
+		pr_err("Failed to create clean procfs entry\n");
 		goto err_procfs;
 	}
 

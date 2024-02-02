@@ -3,16 +3,22 @@
 #include <linux/fs.h>
 
 #include "ouichefs.h"
-#include "eviction_policy.h"
+#include "eviction_policy/eviction_policy.h"
 
-void no_op(void)
+int no_op1(struct super_block *sb)
 {
+	return 0;
+}
+
+int no_op2(struct super_block *sb, struct ouichefs_file *file)
+{
+	return 0;
 }
 
 struct ouichefs_eviction_policy wich_default_policy = {
 	.name = "wich_default_policy",
-	.clean_dir = no_op,
-	.clean_partition = no_op,
+	.clean_dir = no_op2,
+	.clean_partition = no_op1,
 	.list_head = LIST_HEAD_INIT(wich_default_policy.list_head),
 };
 
