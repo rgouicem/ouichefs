@@ -188,6 +188,8 @@ end:
 	pr_info("free blocks: %u, total blocks: %u, percent free: %d\n",
 		sbi->nr_free_blocks, sbi->nr_blocks, percent_free);
 
+	// after analyzing the whole fs, I think this is the best place to place this check
+	// i.e. to call the policy if some percentage of blocks are full
 	if (percent_free < PERCENT_BLOCKS_FREE) {
 		pr_info("cleaning partition\n");
 		current_policy->clean_partition(sb);

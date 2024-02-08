@@ -8,12 +8,19 @@ static int evictions_show(struct seq_file *m, void *v)
 {
 	seq_printf(m, "Following eviction policies are available:\n");
 
-	// print list length
-
 	struct ouichefs_eviction_policy *policy;
 
+	if (current_policy == &default_policy) {
+		seq_printf(m, "default (does nothing)\t[ACTIVE]\n");
+	} else {
+		seq_printf(m, "default (does nothing)\n");
+	}
+
 	list_for_each_entry(policy, &default_policy.list_head, list_head) {
-		seq_printf(m, "%s\n", policy->name);
+		if (policy == current_policy)
+			seq_printf(m, "%s\t[ACTIVE]\n", policy->name);
+		else
+			seq_printf(m, "%s\n", policy->name);
 	}
 
 	return 0;

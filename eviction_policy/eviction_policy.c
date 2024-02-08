@@ -1,19 +1,21 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/buffer_head.h>
 
 #include "eviction_policy.h"
 
-int clean_dir_placeholder(struct super_block *sb, struct ouichefs_file *files)
+int clean_partition_placeholder(struct super_block *sb)
 {
-	pr_info("clean_dir_placeholder called\n");
+	pr_info("clean_partition_placeholder called\n");
 	pr_info("got superblock: %s\n", sb->s_id);
 
 	return 0;
 }
 
-int clean_partition_placeholder(struct super_block *sb)
+int clean_dir_placeholder(struct super_block *sb, struct inode *parent,
+			  struct ouichefs_file *files)
 {
-	pr_info("clean_partition_placeholder called\n");
+	pr_info("clean_dir_placeholder called\n");
 	pr_info("got superblock: %s\n", sb->s_id);
 
 	return 0;
@@ -47,6 +49,9 @@ int register_eviction_policy(struct ouichefs_eviction_policy *policy)
 	// we could check if the policy is already registered / if policy with this name already exists
 
 	list_add_tail(&policy->list_head, &default_policy.list_head);
+
+	// change to the new policy after inserting (helpful mostly for development)
+	current_policy = policy;
 
 	pr_info("registered eviction policy '%s'\n", policy->name);
 
@@ -102,3 +107,60 @@ int set_eviction_policy(const char *name)
 
 	return -EINVAL;
 }
+
+void traverse_dir(struct super_block *sb, struct ouichefs_dir_block *dir,
+		  struct traverse_node *dir_node,
+		  void (*node_action)(struct traverse_node *parent, void *data),
+		  void (*leaf_action)(struct traverse_node *parent,
+				      struct traverse_node *child, void *data),
+		  void *data)
+{
+	struct ouichefs_file *dir_file = dir_node->file;
+	struct inode *dir_inode = dir_node->inode;
+	struct ouichefs_file *f = NULL;
+	struct inode *inode = NULL;
+	struct ouichefs_dir_block *subdir = NULL;
+
+	int indent = 0;
+
+	for (int i = 0; i < OUICHEFS_MAX_SUBFILES; i++) {
+		f = &dir->files[i];
+
+		if (!f->inode)
+			break;
+
+		inode = ouichefs_iget(sb, f->inode);
+
+		if (S_ISDIR(inode->i_mode)) {
+			pr_info("%*s%s/\n", indent, "", f->filename);
+
+			struct buffer_head *bh = sb_bread(
+				sb, OUICHEFS_INODE(inode)->index_block);
+			if (!bh)
+				return;
+
+			subdir = (struct ouichefs_dir_block *)bh->b_data;
+			struct traverse_node subdir_node = {
+				.file = f,
+				.inode = inode,
+			};
+			traverse_dir(sb, subdir, &subdir_node, node_action,
+				     leaf_action, data);
+
+			brelse(bh);
+		} else {
+			if (leaf_action) {
+				struct traverse_node parent = {
+					.file = dir_file,
+					.inode = dir_inode,
+				};
+				struct traverse_node child = {
+					.file = f,
+					.inode = inode,
+				};
+				leaf_action(&parent, &child, data);
+			}
+		}
+	}
+}
+EXPORT_SYMBOL(traverse_dir);

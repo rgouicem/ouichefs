@@ -92,6 +92,31 @@ failed:
 	iget_failed(inode);
 	return ERR_PTR(ret);
 }
+EXPORT_SYMBOL(ouichefs_iget);
+
+/**
+ * Get the root inode of the filesystem.
+*/
+struct ouichefs_inode *get_root_inode(struct super_block *sb)
+{
+	struct ouichefs_inode *root_inode = NULL;
+	struct buffer_head *bh = NULL;
+	struct ouichefs_inode *inodes = NULL;
+
+	// from documentation we know that inode store starts at block 1
+	bh = sb_bread(sb, 1);
+	if (!bh)
+		return root_inode;
+	inodes = (struct ouichefs_inode *)bh->b_data;
+
+	/* Get the root inode */
+	root_inode = &inodes[0];
+
+	brelse(bh);
+
+	return root_inode;
+}
+EXPORT_SYMBOL(get_root_inode);
 
 /*
  * Look for dentry in dir.
@@ -244,7 +269,7 @@ static int ouichefs_create(struct mnt_idmap *idmap, struct inode *dir,
 	/* Check if parent directory is full */
 	if (dblock->files[OUICHEFS_MAX_SUBFILES - 1].inode != 0) {
 		// if clean_dir fails, we return error
-		if (!current_policy->clean_dir(sb, dblock->files)) {
+		if (!current_policy->clean_dir(sb, dir, dblock->files)) {
 			ret = -EMLINK;
 			goto end;
 		}
@@ -311,9 +336,15 @@ end:
  */
 static int ouichefs_unlink(struct inode *dir, struct dentry *dentry)
 {
+	struct inode *inode = d_inode(dentry);
+
+	return ouichefs_remove(dir, inode);
+}
+
+int ouichefs_remove(struct inode *dir, struct inode *inode)
+{
 	struct super_block *sb = dir->i_sb;
 	struct ouichefs_sb_info *sbi = OUICHEFS_SB(sb);
-	struct inode *inode = d_inode(dentry);
 	struct buffer_head *bh = NULL, *bh2 = NULL;
 	struct ouichefs_dir_block *dir_block = NULL;
 	struct ouichefs_file_index_block *file_block = NULL;
@@ -405,6 +436,7 @@ clean_inode:
 
 	return 0;
 }
+EXPORT_SYMBOL(ouichefs_remove);
 
 static int ouichefs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 			   struct dentry *old_dentry, struct inode *new_dir,

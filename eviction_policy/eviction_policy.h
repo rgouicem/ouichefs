@@ -15,9 +15,22 @@
 struct ouichefs_eviction_policy {
 	char name[POLICY_NAME_LEN];
 
-	// TODO: find out what should be passed to this functions
+	/**
+	 * This function should go through the whole partition and free some 
+	 * blocks based on it's policy.
+	 * It gets the super block of the partition to clean, because there can
+	 * be multiple partitions, using this filesystem, mounted.
+	 */
 	int (*clean_partition)(struct super_block *);
-	int (*clean_dir)(struct super_block *, struct ouichefs_file *);
+
+	/**
+	 * This function is called when during file/directory creation there is
+	 * not more place lest in the directory.
+	 * It should try to free place in given directory, but can return error
+	 * if it's not possible.
+	 */
+	int (*clean_dir)(struct super_block *sb, struct inode *parent,
+			 struct ouichefs_file *files);
 
 	struct list_head list_head;
 };
@@ -28,6 +41,20 @@ extern void unregister_eviction_policy(struct ouichefs_eviction_policy *policy);
 extern int set_eviction_policy(const char *name);
 
 extern struct ouichefs_eviction_policy *current_policy;
+
+// helpers for traversing the filesystem
+
+struct traverse_node {
+	struct ouichefs_file *file;
+	struct inode *inode;
+};
+
+void traverse_dir(struct super_block *sb, struct ouichefs_dir_block *dir,
+		  struct traverse_node *dir_node,
+		  void (*node_action)(struct traverse_node *parent, void *data),
+		  void (*leaf_action)(struct traverse_node *parent,
+				      struct traverse_node *child, void *data),
+		  void *data);
 
 /* we user % to be able to use int instead of float */
 #define PERCENT_BLOCKS_FREE 20

@@ -39,6 +39,7 @@ static int ouichefs_iterate(struct file *dir, struct dir_context *ctx)
 	if (ctx->pos > OUICHEFS_MAX_SUBFILES + 2)
 		return 0;
 
+	// TODO: possible bug - . and .. arent printed by ls -a
 	/* Commit . and .. to ctx */
 	if (!dir_emit_dots(dir, ctx))
 		return 0;
