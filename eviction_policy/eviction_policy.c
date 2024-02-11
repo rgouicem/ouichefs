@@ -2,9 +2,10 @@
 #include <linux/kernel.h>
 #include <linux/buffer_head.h>
 
+#include "../ouichefs.h"
 #include "eviction_policy.h"
 
-int clean_partition_placeholder(struct super_block *sb)
+static int clean_partition_placeholder(struct super_block *sb)
 {
 	pr_info("clean_partition_placeholder called\n");
 	pr_info("got superblock: %s\n", sb->s_id);
@@ -12,8 +13,8 @@ int clean_partition_placeholder(struct super_block *sb)
 	return 0;
 }
 
-int clean_dir_placeholder(struct super_block *sb, struct inode *parent,
-			  struct ouichefs_file *files)
+static int clean_dir_placeholder(struct super_block *sb, struct inode *parent,
+				 struct ouichefs_file *files)
 {
 	pr_info("clean_dir_placeholder called\n");
 	pr_info("got superblock: %s\n", sb->s_id);
@@ -110,7 +111,10 @@ int set_eviction_policy(const char *name)
 
 void traverse_dir(struct super_block *sb, struct ouichefs_dir_block *dir,
 		  struct traverse_node *dir_node,
-		  void (*node_action)(struct traverse_node *parent, void *data),
+		  void (*node_action_before)(struct traverse_node *parent,
+					     void *data),
+		  void (*node_action_after)(struct traverse_node *parent,
+					    void *data),
 		  void (*leaf_action)(struct traverse_node *parent,
 				      struct traverse_node *child, void *data),
 		  void *data)
@@ -121,19 +125,17 @@ void traverse_dir(struct super_block *sb, struct ouichefs_dir_block *dir,
 	struct inode *inode = NULL;
 	struct ouichefs_dir_block *subdir = NULL;
 
-	int indent = 0;
-
 	for (int i = 0; i < OUICHEFS_MAX_SUBFILES; i++) {
 		f = &dir->files[i];
 
 		if (!f->inode)
 			break;
 
+		// for some fucking reason no variation of ilookup / find_inode_* works, so after 3h of debugging we give up and just grab the inode from the disk, instead of cache
+		// inode = ilookup(sb, f->inode);
 		inode = ouichefs_iget(sb, f->inode);
 
 		if (S_ISDIR(inode->i_mode)) {
-			pr_info("%*s%s/\n", indent, "", f->filename);
-
 			struct buffer_head *bh = sb_bread(
 				sb, OUICHEFS_INODE(inode)->index_block);
 			if (!bh)
@@ -144,8 +146,16 @@ void traverse_dir(struct super_block *sb, struct ouichefs_dir_block *dir,
 				.file = f,
 				.inode = inode,
 			};
-			traverse_dir(sb, subdir, &subdir_node, node_action,
+
+			if (node_action_before)
+				node_action_before(&subdir_node, data);
+
+			traverse_dir(sb, subdir, &subdir_node,
+				     node_action_before, node_action_after,
 				     leaf_action, data);
+
+			if (node_action_after)
+				node_action_after(&subdir_node, data);
 
 			brelse(bh);
 		} else {
@@ -161,6 +171,8 @@ void traverse_dir(struct super_block *sb, struct ouichefs_dir_block *dir,
 				leaf_action(&parent, &child, data);
 			}
 		}
+
+		iput(inode);
 	}
 }
 EXPORT_SYMBOL(traverse_dir);

@@ -20,39 +20,31 @@ static ssize_t clean_proc_write(struct file *s, const char __user *buf,
 
 	// pr_info("Received mount name: %s\n", mount_name);
 
-	struct mount_item *mount_item;
-	struct list_head *head = &first.list;
+	struct partition *partition;
+	struct list_head *head = &first_partition.list;
 
-	list_for_each_entry(mount_item, head, list) {
-		// pr_info("Mount name: %s\n", mount_item->name);
-		// pr_info("same? %d\n", strcmp(mount_item->name, mount_name));
-
-		if (strcmp(mount_item->name, mount_name) == 0) {
+	list_for_each_entry(partition, head, list) {
+		if (strcmp(partition->name, mount_name) == 0) {
 			break;
 		}
 	}
 
-	if (mount_item == NULL || mount_item->dentry == NULL) {
-		pr_err("No such mount found\n");
+	if (partition == NULL) {
+		pr_err("No such partition found\n");
 		return -EINVAL;
 	}
 
-	// pr_info("Mount found %s\n", mount_item->name);
-
-	struct super_block *sb = mount_item->dentry->d_sb;
+	struct super_block *sb = partition->sb;
 
 	if (sb == NULL) {
-		pr_err("No superblock found\n");
+		pr_err("Partition without superblock - this should not happen ¯\\_(ツ)_/¯ \n");
 		return -EINVAL;
 	}
 
-	// check if the superblock is of the ouichefs type
 	if (sb->s_magic != OUICHEFS_MAGIC) {
-		pr_err("Superblock is not of ouichefs type\n");
+		pr_err("Partition is not ouichefs - cannot clean\n");
 		return -EINVAL;
 	}
-
-	// pr_info("Superblock found %s\n", sb->s_id);
 
 	current_policy->clean_partition(sb);
 

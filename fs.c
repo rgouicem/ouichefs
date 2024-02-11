@@ -23,7 +23,7 @@
 
 // MARK: - procfs
 
-struct proc_dir_entry *dir;
+static struct proc_dir_entry *dir;
 
 // MARK: - Filesystem operations
 
@@ -42,12 +42,7 @@ struct dentry *ouichefs_mount(struct file_system_type *fs_type, int flags,
 	else
 		pr_info("'%s' mount success\n", dev_name);
 
-	// add the dentry to the list
-	struct mount_item *item =
-		kmalloc(sizeof(struct mount_item), GFP_KERNEL);
-	item->dentry = dentry;
-	item->name = dev_name;
-	list_add_tail(&item->list, &first.list);
+	remember_partition(dentry->d_sb, dev_name);
 
 	return dentry;
 }
@@ -57,6 +52,8 @@ struct dentry *ouichefs_mount(struct file_system_type *fs_type, int flags,
  */
 void ouichefs_kill_sb(struct super_block *sb)
 {
+	forget_partition(sb);
+
 	kill_block_super(sb);
 
 	pr_info("unmounted disk\n");

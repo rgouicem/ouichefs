@@ -1,5 +1,5 @@
 obj-m += ouichefs.o
-obj-m += wich_default.o
+obj-m += wich_print.o
 ouichefs-objs := fs.o super.o inode.o file.o dir.o eviction_policy/eviction_policy.o
 
 KERNELDIR ?= ../linux

@@ -36,9 +36,9 @@ struct ouichefs_eviction_policy {
 };
 
 extern struct ouichefs_eviction_policy default_policy;
-extern int register_eviction_policy(struct ouichefs_eviction_policy *policy);
-extern void unregister_eviction_policy(struct ouichefs_eviction_policy *policy);
-extern int set_eviction_policy(const char *name);
+int register_eviction_policy(struct ouichefs_eviction_policy *policy);
+void unregister_eviction_policy(struct ouichefs_eviction_policy *policy);
+int set_eviction_policy(const char *name);
 
 extern struct ouichefs_eviction_policy *current_policy;
 
@@ -51,7 +51,10 @@ struct traverse_node {
 
 void traverse_dir(struct super_block *sb, struct ouichefs_dir_block *dir,
 		  struct traverse_node *dir_node,
-		  void (*node_action)(struct traverse_node *parent, void *data),
+		  void (*node_action_before)(struct traverse_node *parent,
+					     void *data),
+		  void (*node_action_after)(struct traverse_node *parent,
+					    void *data),
 		  void (*leaf_action)(struct traverse_node *parent,
 				      struct traverse_node *child, void *data),
 		  void *data);
