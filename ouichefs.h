@@ -78,11 +78,13 @@ struct ouichefs_file_index_block {
 	uint32_t blocks[OUICHEFS_BLOCK_SIZE >> 2];
 };
 
+struct ouichefs_file {
+	uint32_t inode;
+	char filename[OUICHEFS_FILENAME_LEN];
+};
+
 struct ouichefs_dir_block {
-	struct ouichefs_file {
-		uint32_t inode;
-		char filename[OUICHEFS_FILENAME_LEN];
-	} files[OUICHEFS_MAX_SUBFILES];
+	struct ouichefs_file files[OUICHEFS_MAX_SUBFILES];
 };
 
 /* superblock functions */

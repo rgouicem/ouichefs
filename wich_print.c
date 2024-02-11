@@ -57,48 +57,22 @@ static int clean_partition(struct super_block *sb)
 	traverse_dir(sb, dblock, &root_node, node_action_before,
 		     node_action_after, leaf_action, &pd);
 
+	brelse(bh);
+
 	return 0;
 }
 
 static int clean_dir(struct super_block *sb, struct inode *parent,
 		     struct ouichefs_file *files)
 {
-	struct inode *child = NULL;
-	struct ouichefs_file *child_f = NULL;
-
-	struct inode *inode = NULL;
-	struct ouichefs_file *f = NULL;
+	pr_info("Contents of the directory\n");
 
 	for (int i = 0; i < OUICHEFS_MAX_SUBFILES; i++) {
-		f = &(files[i]);
-
-		if (!f->inode)
+		if (!files[i].inode)
 			break;
 
-		inode = ouichefs_iget(sb, f->inode);
-
-		if (S_ISDIR(inode->i_mode))
-			continue;
-
-		if (!child) {
-			child = inode;
-			child_f = f;
-			continue;
-		}
-
-		if (child->i_size < inode->i_size) {
-			child = inode;
-			child_f = f;
-		}
+		pr_info("    %s\n", files[i].filename);
 	}
-
-	if (!child) {
-		pr_err("No files in directory. Can't free space\n");
-		return -1;
-	}
-
-	pr_info("Removing file: %s in directory: %s\n", child_f->filename,
-		parent->i_sb->s_id);
 
 	return 0;
 }
