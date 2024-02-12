@@ -54,3 +54,4 @@ dkms.conf
 
 # Other
 mkfs/*.img
+*.patch

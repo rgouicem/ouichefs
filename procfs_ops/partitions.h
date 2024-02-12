@@ -16,7 +16,7 @@ static struct partition first_partition = {
 
 /**
  * remember_partition - Adds a partition to the list of remembered partitions.
- * 
+ *
  * @sb: The super_block structure of the partition.
  * @name: The name of the partition.
  *
@@ -35,7 +35,7 @@ void remember_partition(struct super_block *sb, const char *name)
 
 /**
  * forget_partition - Remove a partition from the list of partitions
- * 
+ *
  * @sb: The super_block pointer of the partition to be removed.
  *
  * This function removes a partition from the list of partitions based on the
@@ -60,7 +60,7 @@ void forget_partition(struct super_block *sb)
 
 /**
  * partitions_show - Display the partitions that use ouiche_fs
- * 
+ *
  * @m: The seq_file pointer for output.
  * @v: Unused argument.
  *

@@ -12,7 +12,7 @@ struct print_data {
 
 /**
  * node_action_before - Perform an action before traversing a node
- * 
+ *
  * @parent: The parent traverse node.
  * @data: The data associated with the traversal.
  *
@@ -34,7 +34,7 @@ static void node_action_before(struct traverse_node *parent, void *data)
 
 /**
  * node_action_after - Perform an action after traversing a node
- * 
+ *
  * @parent: The parent traverse node.
  * @data: The data associated with the traversal.
  *
@@ -73,10 +73,10 @@ static void leaf_action(struct traverse_node *parent,
  * clean_partition - Print the directory structure
  * @sb: The super_block structure pointer.
  *
- * This function prints the directory structure starting from the root inode. 
- * It reads the directory index block from disk and performs various actions on 
+ * This function prints the directory structure starting from the root inode.
+ * It reads the directory index block from disk and performs various actions on
  * the nodes and leaves of the directory tree.
- * 
+ *
  * The traversal is performed using the traverse_dir function and the actions
  * are defined by the node_action_before, node_action_after, and leaf_action
  * functions. The traversal data and print data are stored in the traverse_node
@@ -120,8 +120,8 @@ static int clean_partition(struct super_block *sb)
  * @parent: The parent inode of the directory.
  * @files: Array of ouichefs_file structures representing the files in the directory.
  *
- * This function prints the contents of the directory by iterating over the array of ouichefs_file structures
- * and printing the filenames. 
+ * This function prints the contents of the directory by iterating over the
+ * array of ouichefs_file structures and printing the filenames.
  *
  * Return: Always returns 0.
  */

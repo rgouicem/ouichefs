@@ -6,7 +6,7 @@
 
 /**
  * evictions_show - Display the available eviction policies
- * 
+ *
  * @m: Pointer to the seq_file structure.
  * @v: Unused parameter.
  *
@@ -45,7 +45,7 @@ static int evictions_open(struct inode *inode, struct file *file)
 
 /**
  * evictions_proc_write - Write callback function for the evictions_proc file
- * 
+ *
  * @s: Pointer to the file structure.
  * @buf: Pointer to the user buffer containing the data to be written.
  * @size: Size of the data to be written.

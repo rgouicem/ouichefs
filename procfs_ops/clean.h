@@ -4,7 +4,7 @@
 
 /**
  * clean_proc_write - Write callback for cleaning a specific mount
- * 
+ *
  * @s: Pointer to the file structure.
  * @buf: Pointer to the input buffer.
  * @size: Size of the input buffer.
