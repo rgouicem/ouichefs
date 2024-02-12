@@ -2,6 +2,23 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
+/**
+ * clean_proc_write - Write callback for cleaning a specific mount
+ * 
+ * @s: Pointer to the file structure.
+ * @buf: Pointer to the input buffer.
+ * @size: Size of the input buffer.
+ * @ppos: Pointer to the file position.
+ *
+ * This function is the write callback for cleaning a specific mount. It takes
+ * the mount name from the input buffer and searches for the corresponding
+ * partition. If found, it checks if the partition has a superblock and if the
+ * superblock's magic number matches the expected value. If all conditions are
+ * met, it calls the clean_partition() function of the current policy to clean
+ * the partition.
+ *
+ * Return: The size of the input buffer on success, or a negative error code on failure.
+ */
 static ssize_t clean_proc_write(struct file *s, const char __user *buf,
 				size_t size, loff_t *ppos)
 {

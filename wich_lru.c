@@ -19,6 +19,17 @@ struct lru_data {
 	struct inode *child;
 };
 
+/**
+ * is_older - Compares the timestamps of two inodes to determine which one is older.
+ * @inode1: Pointer to the first inode.
+ * @inode2: Pointer to the second inode.
+ *
+ * This function compares the timestamps of two inodes based on the specified mode
+ * (access, modification, or change) and returns a value indicating which inode is older.
+ *
+ * Return: A negative value if inode1 is older, a positive value if inode2 is older,
+ *         and zero if the timestamps are equal.
+ */
 static int is_older(struct inode *inode1, struct inode *inode2)
 {
 	switch (mode) {
@@ -32,6 +43,19 @@ static int is_older(struct inode *inode1, struct inode *inode2)
 	};
 }
 
+/**
+ * leaf_action - Perform an action on a leaf node during traversal
+ * 
+ * @parent: The parent node of the leaf node.
+ * @child: The leaf node to perform the action on.
+ * @data: The data associated with the traversal.
+ *
+ * This function is called during traversal of a tree structure to perform an
+ * action on a leaf node. It updates the oldest file information in the lru_data
+ * structure based on the child node's inode. If the child node is older than the
+ * current oldest file, the parent and child inodes are updated and a log message
+ * is printed.
+ */
 static void leaf_action(struct traverse_node *parent,
 			struct traverse_node *child, void *data)
 {
@@ -54,6 +78,17 @@ static void leaf_action(struct traverse_node *parent,
 	}
 }
 
+/**
+ * clean_partition - Cleans the partition by removing a file from a directory.
+ * 
+ * @sb: The super_block structure pointer.
+ *
+ * This function is responsible for cleaning the partition by removing a file 
+ * from a directory. It reads the directory index block on disk, traverses the 
+ * directory structure, and removes the specified file.
+ *
+ * Return: 0 on success, -EIO on failure.
+ */
 static int clean_partition(struct super_block *sb)
 {
 	struct buffer_head *bh = NULL;
@@ -85,7 +120,19 @@ static int clean_partition(struct super_block *sb)
 
 	return 0;
 }
-
+/**
+ * clean_dir - Clean a directory by removing the oldest file
+ * 
+ * @sb: The super block of the file system.
+ * @parent: The parent inode of the directory.
+ * @files: Array of ouichefs_file structures representing the files in the directory.
+ *
+ * This function cleans a directory by removing the oldest file in the directory.
+ * It iterates through the files in the directory, finds the oldest file, and removes it.
+ * If there are no files in the directory, an error message is printed and -1 is returned.
+ *
+ * Return: 0 on success, -1 if there are no files in the directory
+ */
 static int clean_dir(struct super_block *sb, struct inode *parent,
 		     struct ouichefs_file *files)
 {
@@ -95,6 +142,7 @@ static int clean_dir(struct super_block *sb, struct inode *parent,
 	struct inode *inode = NULL;
 	struct ouichefs_file *f = NULL;
 
+	/* Find oldest file */
 	for (int i = 0; i < OUICHEFS_MAX_SUBFILES; i++) {
 		f = &(files[i]);
 

@@ -31,17 +31,26 @@ struct ouichefs_eviction_policy default_policy = {
 
 struct ouichefs_eviction_policy *current_policy = &default_policy;
 
-/*
- * Allows another module to register an eviction policy handler used by 
- * ouichefs to free up space on the disk.
+/**
+ * register_eviction_policy - Register an eviction policy
+ * 
+ * @policy: Pointer to the eviction policy structure.
+ *
+ * This function registers an eviction policy by adding it to the list of
+ * available policies. The policy structure must be provided as an argument.
+ * The function checks for a NULL pointer and the length of the policy name
+ * before registering it. If the policy name is too long, an error is returned.
+ * After registering the policy, it is set as the current policy.
+ *
+ * Return: 0 on success, -EINVAL if the policy is NULL or the policy name is too long.
  */
 int register_eviction_policy(struct ouichefs_eviction_policy *policy)
 {
-	// bail out on NULL pointer
+	/* Bail out on NULL pointer */
 	if (!policy)
 		return -EINVAL;
 
-	// check if name has valid length
+	/* Check for valid policy name length */
 	if (strlen(policy->name) > POLICY_NAME_LEN) {
 		pr_err("policy name too long\n");
 		return -EINVAL;
@@ -60,23 +69,32 @@ int register_eviction_policy(struct ouichefs_eviction_policy *policy)
 }
 EXPORT_SYMBOL(register_eviction_policy);
 
-/*
- * Allows another module to unregister an eviction policy handler used by 
- * ouichefs to free up space on the disk.
+/**
+ * unregister_eviction_policy - Unregisters an eviction policy
+ * 
+ * @policy: Pointer to the eviction policy to unregister.
+ *
+ * This function unregisters an eviction policy from the system. If the @policy
+ * parameter is NULL, the function returns immediately. If the @policy parameter
+ * points to the default eviction policy, the function prints an error message
+ * and returns without unregistering. If the @policy parameter is the currently
+ * active policy, the function falls back to the default policy. Finally, the
+ * function removes the policy from the list of registered policies and prints
+ * an information message indicating the successful unregistration.
  */
 void unregister_eviction_policy(struct ouichefs_eviction_policy *policy)
 {
-	// bail out on NULL pointer
+	/* Bail out on NULL pointer */
 	if (!policy)
 		return;
 
-	// we don't want to lose the default (and list head)
+	/* We do not want to lose the default (and list head) */
 	if (policy == &default_policy) {
 		pr_err("cannot unregister default eviction policy\n");
 		return;
 	}
 
-	// if current policy is unregistered fallback to default
+	/* If current policy is unregistered then fallback to default */
 	if (current_policy == policy) {
 		current_policy = &default_policy;
 	}
@@ -87,15 +105,27 @@ void unregister_eviction_policy(struct ouichefs_eviction_policy *policy)
 }
 EXPORT_SYMBOL(unregister_eviction_policy);
 
+/**
+ * set_eviction_policy - Sets the eviction policy to the specified name.
+ * 
+ * @name: The name of the eviction policy to set.
+ *
+ * This function sets the eviction policy to the specified name. It searches for
+ * the policy with the given name in the list of default policies. If a matching
+ * policy is found, it sets the current policy to that policy and returns 0. If
+ * no matching policy is found, it returns -EINVAL.
+ *
+ * Return: 0 on success, -EINVAL if the name is NULL or if no matching policy is found.
+ */
 int set_eviction_policy(const char *name)
 {
 	struct ouichefs_eviction_policy *policy;
 
-	// bail out on NULL pointer
+	/* Bail out on NULL pointer */
 	if (!name)
 		return -EINVAL;
 
-	// find policy by name
+	/* Find policy by name */
 	list_for_each_entry(policy, &default_policy.list_head, list_head) {
 		if (strcmp(policy->name, name) == 0) {
 			current_policy = policy;
@@ -109,6 +139,25 @@ int set_eviction_policy(const char *name)
 	return -EINVAL;
 }
 
+/**
+ * traverse_dir - Recursively traverses a directory and performs actions on each node and leaf.
+ *
+ * @sb: The super block of the file system.
+ * @dir: The directory block to traverse.
+ * @dir_node: The traverse node representing the current directory.
+ * @node_action_before: The function to be called before traversing a directory node.
+ * @node_action_after: The function to be called after traversing a directory node.
+ * @leaf_action: The function to be called for each leaf node.
+ * @data: Additional data to be passed to the action functions.
+ *
+ * This function recursively traverses a directory and performs actions on each node and leaf.
+ * It starts from the given directory block and traverses all subdirectories and files within.
+ * The provided action functions are called at specific points during the traversal.
+ * The node_action_before function is called before traversing a directory node.
+ * The node_action_after function is called after traversing a directory node.
+ * The leaf_action function is called for each leaf node (file).
+ * The data parameter can be used to pass additional data to the action functions to interpret there.
+ */
 void traverse_dir(struct super_block *sb, struct ouichefs_dir_block *dir,
 		  struct traverse_node *dir_node,
 		  void (*node_action_before)(struct traverse_node *parent,

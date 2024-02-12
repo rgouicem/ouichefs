@@ -11,6 +11,16 @@ struct size_data {
 	struct inode *child;
 };
 
+/**
+ * leaf_action - Perform an action on a leaf node during traversal
+ * 
+ * @parent: The parent node of the leaf node.
+ * @child: The leaf node to perform the action on.
+ * @data: The data associated with the traversal.
+ *
+ * This function is called during traversal of a file system tree on a leaf node.
+ * It performs an action on the leaf node, such as updating the biggest file information.
+ */
 static void leaf_action(struct traverse_node *parent,
 			struct traverse_node *child, void *data)
 {
@@ -33,6 +43,17 @@ static void leaf_action(struct traverse_node *parent,
 	}
 }
 
+/**
+ * clean_partition - Cleans the partition by removing a file from a directory.
+ * 
+ * @sb: The super_block structure pointer.
+ *
+ * This function is responsible for cleaning the partition by removing a file 
+ * from a directory. It reads the directory index block on disk, traverses the 
+ * directory structure, and removes the specified file.
+ *
+ * Return: 0 on success, -EIO on failure.
+ */
 static int clean_partition(struct super_block *sb)
 {
 	struct buffer_head *bh = NULL;
@@ -65,6 +86,20 @@ static int clean_partition(struct super_block *sb)
 	return 0;
 }
 
+/**
+ * clean_dir - Clean a directory by removing the biggest file
+ * 
+ * @sb: The super block of the file system.
+ * @parent: The parent inode of the directory.
+ * @files: Array of ouichefs_file structures representing the files in the directory.
+ *
+ * This function cleans a directory by removing the file with the biggest size.
+ * It iterates through the files in the directory, finds the file with the biggest size,
+ * and removes it from the file system.
+ * If there are no files in the directory, an error message is printed and -1 is returned.
+ *
+ * Return: 0 on success, -1 if there are no files in the directory
+ */
 static int clean_dir(struct super_block *sb, struct inode *parent,
 		     struct ouichefs_file *files)
 {
