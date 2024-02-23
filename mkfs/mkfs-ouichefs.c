@@ -286,6 +286,30 @@ end:
 	return ret;
 }
 
+static int write_root_index_block(int fd, struct ouichefs_superblock *sb)
+{
+	int ret = 0;
+	char *block;
+
+	block = malloc(OUICHEFS_BLOCK_SIZE);
+	if (!block)
+		return 1;
+	memset(block, 0, OUICHEFS_BLOCK_SIZE);
+
+	ret = write(fd, block, OUICHEFS_BLOCK_SIZE);
+	if (ret != OUICHEFS_BLOCK_SIZE) {
+		ret = -1;
+		goto end;
+	}
+	ret = 0;
+
+	printf("Root index block: wrote 1 block\n");
+end:
+	free(block);
+
+	return ret;
+}
+
 static int write_data_blocks(int fd, struct ouichefs_superblock *sb)
 {
 	int ret = 0;
@@ -371,6 +395,14 @@ int main(int argc, char **argv)
 	ret = write_bfree_blocks(fd, sb);
 	if (ret != 0) {
 		perror("write_bfree_blocks()");
+		ret = EXIT_FAILURE;
+		goto free_sb;
+	}
+
+	/* Write the root index block */
+	ret = write_root_index_block(fd, sb);
+	if (ret != 0) {
+		perror("write_root_index_block()");
 		ret = EXIT_FAILURE;
 		goto free_sb;
 	}
