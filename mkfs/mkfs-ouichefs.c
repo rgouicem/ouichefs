@@ -1,5 +1,7 @@
+#include <linux/fs.h> // BLKGETSIZE64
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -78,7 +80,8 @@ static inline uint32_t idiv_ceil(uint32_t a, uint32_t b)
 	return ret;
 }
 
-static struct ouichefs_superblock *write_superblock(int fd, struct stat *fstats)
+static struct ouichefs_superblock *write_superblock(int fd,
+						    uint64_t partition_size)
 {
 	int ret;
 	struct ouichefs_superblock *sb;
@@ -90,7 +93,7 @@ static struct ouichefs_superblock *write_superblock(int fd, struct stat *fstats)
 	if (!sb)
 		return NULL;
 
-	nr_blocks = fstats->st_size / OUICHEFS_BLOCK_SIZE;
+	nr_blocks = partition_size / OUICHEFS_BLOCK_SIZE;
 	nr_inodes = nr_blocks;
 	mod = nr_inodes % OUICHEFS_INODES_PER_BLOCK;
 	if (mod != 0)
@@ -306,10 +309,27 @@ static int write_data_blocks(int fd, struct ouichefs_superblock *sb)
 	return ret;
 }
 
+/** Retrieve the size of a block device.
+ * 
+ * @param[in] fd open file descriptor of the block device 
+ * @param[out] size the size of the device in bytes
+ * @return 0 on success. -1 on failure with errno set.
+ */
+static int get_blockdev_size(int fd, uint64_t *size)
+{
+	int ret;
+	ret = ioctl(fd, BLKGETSIZE64, size);
+	if (ret != 0) {
+		return -1;
+	}
+	return ret;
+}
+
 int main(int argc, char **argv)
 {
 	int ret = EXIT_SUCCESS, fd;
 	long int min_size;
+	uint64_t partition_size = 0;
 	struct stat stat_buf;
 	struct ouichefs_superblock *sb = NULL;
 
@@ -318,24 +338,36 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
-	/* Open disk image */
+	/* Open disk partition */
 	fd = open(argv[1], O_RDWR);
 	if (fd == -1) {
 		perror("open():");
 		return EXIT_FAILURE;
 	}
 
-	/* Get image size */
+	/* Get partition size */
 	ret = fstat(fd, &stat_buf);
 	if (ret != 0) {
 		perror("fstat():");
 		ret = EXIT_FAILURE;
 		goto fclose;
 	}
+	if (S_ISBLK(stat_buf.st_mode)) {
+		/* The file is a block device */
+		ret = get_blockdev_size(fd, &partition_size);
+		if (ret != 0) {
+			perror("get_blockdev_size():");
+			ret = EXIT_FAILURE;
+			goto fclose;
+		}
+	} else {
+		/* We got a regular file */
+		partition_size = stat_buf.st_size;
+	}
 
-	/* Check if image is large enough */
+	/* Check if partition is large enough */
 	min_size = 100 * OUICHEFS_BLOCK_SIZE;
-	if (stat_buf.st_size <= min_size) {
+	if (partition_size <= min_size) {
 		fprintf(stderr,
 			"File is not large enough (size=%ld, min size=%ld)\n",
 			stat_buf.st_size, min_size);
@@ -344,7 +376,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Write superblock (block 0) */
-	sb = write_superblock(fd, &stat_buf);
+	sb = write_superblock(fd, partition_size);
 	if (!sb) {
 		perror("write_superblock():");
 		ret = EXIT_FAILURE;
