@@ -55,9 +55,11 @@ static int ouichefs_file_get_block(struct inode *inode, sector_t iblock,
 			ret = -ENOSPC;
 			goto brelse_index;
 		}
+		pr_info("%s: Allocated new block %d\n", __func__, bno);
 		index->blocks[iblock] = bno;
 	} else {
 		bno = index->blocks[iblock];
+		pr_info("%s: Reusing block %d\n", __func__, bno);
 	}
 
 	/* Map the physical block to the given buffer_head */
@@ -101,6 +103,8 @@ static int ouichefs_write_begin(struct file *file,
 	int err;
 	uint32_t nr_allocs = 0;
 
+	pr_info("%s: write begin, pos=%lld, len=%d, size=%lld, nr_free_blocks=%d\n", __func__, pos, len, file->f_inode->i_size, sbi->nr_free_blocks);
+
 	/* Check if the write can be completed (enough space?) */
 	if (pos + len > OUICHEFS_MAX_FILESIZE)
 		return -ENOSPC;
@@ -119,6 +123,9 @@ static int ouichefs_write_begin(struct file *file,
 	if (err < 0) {
 		pr_err("%s:%d: newly allocated blocks reclaim not implemented yet\n",
 		       __func__, __LINE__);
+	}
+	if (!err) {
+		pr_info("%s: success, nr_free_blocks=%d\n", __func__, sbi->nr_free_blocks);
 	}
 	return err;
 }
@@ -172,6 +179,7 @@ static int ouichefs_write_end(struct file *file, struct address_space *mapping,
 
 			for (i = inode->i_blocks - 1; i < nr_blocks_old - 1;
 			     i++) {
+				pr_info("%s: Putting a block\n", __func__);
 				put_block(OUICHEFS_SB(sb), index->blocks[i]);
 				index->blocks[i] = 0;
 			}
@@ -190,8 +198,46 @@ const struct address_space_operations ouichefs_aops = {
 	.write_end = ouichefs_write_end
 };
 
+static int ouichefs_open(struct inode *inode, struct file *file) {
+	struct super_block *sb = inode->i_sb;
+	struct ouichefs_sb_info *sbi = OUICHEFS_SB(sb);
+	bool wronly = (file->f_flags & O_WRONLY) != 0;
+	bool rdwr = (file->f_flags & O_RDWR) != 0;
+	bool trunc = (file->f_flags & O_TRUNC) != 0;
+
+	pr_info("%s: Opening file with flags %o, nr_free_blocks=%d\n", __func__, file->f_flags, sbi->nr_free_blocks);
+
+	if ((wronly || rdwr) && trunc && (inode->i_size != 0)) {
+		struct super_block *sb = inode->i_sb;
+		struct ouichefs_sb_info *sbi = OUICHEFS_SB(sb);
+		struct ouichefs_inode_info *ci = OUICHEFS_INODE(inode);
+		struct ouichefs_file_index_block *index;
+		struct buffer_head *bh_index;
+		sector_t iblock;
+
+		/* Read index block from disk */
+		bh_index = sb_bread(sb, ci->index_block);
+		if (!bh_index)
+			return -EIO;
+		index = (struct ouichefs_file_index_block *)bh_index->b_data;
+
+		for (iblock = 0; index->blocks[iblock] != 0; iblock++) {
+			put_block(sbi, index->blocks[iblock]);
+			index->blocks[iblock] = 0;
+		}
+		inode->i_size = 0;
+		inode->i_blocks = 0;
+		pr_info("%s: Truncated file, freed %llu blocks, nr_free_blocks=%d\n", __func__, iblock, sbi->nr_free_blocks);
+
+		brelse(bh_index);
+	}
+	
+	return 0;
+}
+
 const struct file_operations ouichefs_file_ops = {
 	.owner = THIS_MODULE,
+	.open = ouichefs_open,
 	.llseek = generic_file_llseek,
 	.read_iter = generic_file_read_iter,
 	.write_iter = generic_file_write_iter

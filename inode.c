@@ -231,6 +231,7 @@ static int ouichefs_create(struct mnt_idmap *idmap, struct inode *dir,
 	/* Check filename length */
 	if (strlen(dentry->d_name.name) > OUICHEFS_FILENAME_LEN)
 		return -ENAMETOOLONG;
+	pr_info("%s: creating '%s'\n", __func__, dentry->d_name.name);
 
 	/* Read parent directory index */
 	ci_dir = OUICHEFS_INODE(dir);
