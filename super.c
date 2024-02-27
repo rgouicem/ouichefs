@@ -79,8 +79,11 @@ static int ouichefs_write_inode(struct inode *inode,
 	disk_inode->i_gid = i_gid_read(inode);
 	disk_inode->i_size = inode->i_size;
 	disk_inode->i_ctime = inode->i_ctime.tv_sec;
+	disk_inode->i_nctime = inode->i_ctime.tv_nsec;
 	disk_inode->i_atime = inode->i_atime.tv_sec;
+	disk_inode->i_natime = inode->i_atime.tv_nsec;
 	disk_inode->i_mtime = inode->i_mtime.tv_sec;
+	disk_inode->i_nmtime = inode->i_mtime.tv_nsec;
 	disk_inode->i_blocks = inode->i_blocks;
 	disk_inode->i_nlink = inode->i_nlink;
 	disk_inode->index_block = ci->index_block;
@@ -242,6 +245,7 @@ int ouichefs_fill_super(struct super_block *sb, void *data, int silent)
 	sb_set_blocksize(sb, OUICHEFS_BLOCK_SIZE);
 	sb->s_maxbytes = OUICHEFS_MAX_FILESIZE;
 	sb->s_op = &ouichefs_super_ops;
+	sb->s_time_gran = 1;
 
 	/* Read sb from disk */
 	bh = sb_bread(sb, OUICHEFS_SB_BLOCK_NR);
