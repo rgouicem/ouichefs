@@ -41,9 +41,12 @@ struct ouichefs_inode {
 	uint32_t i_uid; /* Owner id */
 	uint32_t i_gid; /* Group id */
 	uint32_t i_size; /* Size in bytes */
-	uint32_t i_ctime; /* Inode change time */
-	uint32_t i_atime; /* Access time */
-	uint32_t i_mtime; /* Modification time */
+	uint32_t i_ctime; /* Inode change time (sec)*/
+	uint64_t i_nctime; /* Inode change time (nsec) */
+	uint32_t i_atime; /* Access time (sec) */
+	uint64_t i_natime; /* Access time (nsec) */
+	uint32_t i_mtime; /* Modification time (sec) */
+	uint64_t i_nmtime; /* Modification time (nsec) */
 	uint32_t i_blocks; /* Block count */
 	uint32_t i_nlink; /* Hard links count */
 	uint32_t index_block; /* Block with list of blocks for this file */

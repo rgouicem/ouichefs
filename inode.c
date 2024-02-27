@@ -62,11 +62,11 @@ struct inode *ouichefs_iget(struct super_block *sb, unsigned long ino)
 	i_gid_write(inode, le32_to_cpu(cinode->i_gid));
 	inode->i_size = le32_to_cpu(cinode->i_size);
 	inode->i_ctime.tv_sec = (time64_t)le32_to_cpu(cinode->i_ctime);
-	inode->i_ctime.tv_nsec = 0;
+	inode->i_ctime.tv_nsec = (long)le64_to_cpu(cinode->i_nctime);
 	inode->i_atime.tv_sec = (time64_t)le32_to_cpu(cinode->i_atime);
-	inode->i_atime.tv_nsec = 0;
+	inode->i_atime.tv_nsec = (long)le64_to_cpu(cinode->i_natime);
 	inode->i_mtime.tv_sec = (time64_t)le32_to_cpu(cinode->i_mtime);
-	inode->i_mtime.tv_nsec = 0;
+	inode->i_mtime.tv_nsec = (long)le64_to_cpu(cinode->i_nmtime);
 	inode->i_blocks = le32_to_cpu(cinode->i_blocks);
 	set_nlink(inode, le32_to_cpu(cinode->i_nlink));
 
@@ -391,6 +391,8 @@ clean_inode:
 	i_gid_write(inode, 0);
 	inode->i_mode = 0;
 	inode->i_ctime.tv_sec = inode->i_mtime.tv_sec = inode->i_atime.tv_sec =
+		0;
+	inode->i_ctime.tv_nsec = inode->i_mtime.tv_nsec = inode->i_atime.tv_nsec =
 		0;
 	inode_dec_link_count(inode);
 	mark_inode_dirty(inode);
