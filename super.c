@@ -215,7 +215,7 @@ static int ouichefs_statfs(struct dentry *dentry, struct kstatfs *stat)
 	stat->f_blocks = sbi->nr_blocks;
 	stat->f_bfree = sbi->nr_free_blocks;
 	stat->f_bavail = sbi->nr_free_blocks;
-	stat->f_files = sbi->nr_inodes - sbi->nr_free_inodes;
+	stat->f_files = sbi->nr_inodes;
 	stat->f_ffree = sbi->nr_free_inodes;
 	stat->f_namelen = OUICHEFS_FILENAME_LEN;
 
