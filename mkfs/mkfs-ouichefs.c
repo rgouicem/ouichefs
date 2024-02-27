@@ -149,8 +149,8 @@ static int write_inode_store(int fd, struct ouichefs_superblock *sb)
 		return -1;
 	memset(block, 0, OUICHEFS_BLOCK_SIZE);
 
-	/* Root inode (inode 0) */
-	inode = (struct ouichefs_inode *)block;
+	/* Root inode (inode 1) */
+	inode = (struct ouichefs_inode *)block + 1;
 	first_data_block = 1 + le32toh(sb->nr_bfree_blocks) +
 			   le32toh(sb->nr_ifree_blocks) +
 			   le32toh(sb->nr_istore_blocks);
@@ -208,7 +208,7 @@ static int write_ifree_blocks(int fd, struct ouichefs_superblock *sb)
 	memset(ifree, 0xff, OUICHEFS_BLOCK_SIZE);
 
 	/* First ifree block, containing first used inode */
-	ifree[0] = htole64(0xfffffffffffffffe);
+	ifree[0] = htole64(0xfffffffffffffffc);
 	ret = write(fd, ifree, OUICHEFS_BLOCK_SIZE);
 	if (ret != OUICHEFS_BLOCK_SIZE) {
 		ret = -1;
