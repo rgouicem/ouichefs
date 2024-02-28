@@ -1,0 +1,26 @@
+# basics
+edition = "2021"
+max_width = 80
+use_small_heuristics = "Max"
+newline_style = "Unix"
+hard_tabs = true
+tab_spaces = 8
+
+# fix trailing commas
+match_block_trailing_comma = true
+trailing_comma = "Never"
+
+# fix imports
+imports_granularity = "Crate"
+#group_imports = "One"
+
+# format all but generated code
+format_generated_files = false
+format_code_in_doc_comments = true
+format_macro_matchers = true
+
+# rewrite outdated/non-idiomatic syntax
+use_field_init_shorthand = true
+use_try_shorthand = true
+condense_wildcard_suffixes = true
+overflow_delimited_expr = true

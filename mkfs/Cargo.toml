@@ -1,0 +1,12 @@
+[package]
+name = "ouichefs_mkfs"
+version = "0.0.0"
+publish = false
+edition = "2021"
+license = "GPL-2.0"
+
+[dependencies]
+anyhow = "1.0"
+bytemuck = { version = "1.14", features = ["derive", "min_const_generics"] }
+clap = { version = "4.5", features = ["derive"] }
+libc = "0.2"

@@ -4,16 +4,18 @@ IMGSIZE ?= 50
 
 all: ${BIN}
 
-${BIN}: mkfs-ouichefs.c
-	gcc -Wall -o $@ $<
+${BIN}:
+	cargo build
+	cp target/debug/ouichefs_mkfs ${BIN}
 
-img: ${BIN}
+img:
 	rm -rf ${IMG}
 	dd if=/dev/zero of=${IMG} bs=1M count=${IMGSIZE}
-	./${BIN} ${IMG}
+	cargo run -- ${IMG}
 	sync
 
 clean:
+	cargo clean
 	rm -rf *~
 
 mrproper: clean
