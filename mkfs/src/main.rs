@@ -19,12 +19,7 @@ use std::{
 
 const OUICHEFS_MAGIC: &[u8; 4] = b"WICH";
 
-const OUICHEFS_SB_BLOCK_NR: u32 = 0;
-
 const OUICHEFS_BLOCK_SIZE: u32 = 1 << 12; /* 4 KiB */
-const OUICHEFS_MAX_FILESIZE: usize = 1 << 22; /* 4 MiB */
-const OUICHEFS_FILENAME_LEN: usize = 28;
-const OUICHEFS_MAX_SUBFILES: usize = 128;
 
 #[derive(Clone, Copy, Pod, Zeroable)]
 #[repr(C)]
@@ -79,19 +74,6 @@ struct OuichefsSuperblock {
 
 	/// Padding to match block size
 	_padding: [u8; 4064]
-}
-
-struct OuichefsFileIndexBlock {
-	blocks: [u32; OUICHEFS_BLOCK_SIZE as usize >> 2]
-}
-
-struct OuichefsFile {
-	inode: u32,
-	filename: [u8; OUICHEFS_FILENAME_LEN]
-}
-
-struct OuichefsDirBlock {
-	files: [OuichefsFile; OUICHEFS_MAX_SUBFILES]
 }
 
 fn write_superblock<W: Write>(
