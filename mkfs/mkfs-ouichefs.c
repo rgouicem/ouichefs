@@ -293,7 +293,7 @@ static int write_root_index_block(int fd, struct ouichefs_superblock *sb)
 
 	block = malloc(OUICHEFS_BLOCK_SIZE);
 	if (!block)
-		return 1;
+		return -1;
 	memset(block, 0, OUICHEFS_BLOCK_SIZE);
 
 	ret = write(fd, block, OUICHEFS_BLOCK_SIZE);
