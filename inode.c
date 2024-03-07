@@ -198,6 +198,7 @@ static struct inode *ouichefs_new_inode(struct inode *dir, mode_t mode)
 		set_nlink(inode, 1);
 	}
 
+	inode->i_flags = 0;
 	inode->i_ctime = inode->i_atime = inode->i_mtime = current_time(inode);
 
 	return inode;
