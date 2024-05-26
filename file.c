@@ -214,7 +214,7 @@ static int ouichefs_open(struct inode *inode, struct file *file) {
 			index->blocks[iblock] = 0;
 		}
 		inode->i_size = 0;
-		inode->i_blocks = 0;
+		inode->i_blocks = 1;
 
 		brelse(bh_index);
 	}
