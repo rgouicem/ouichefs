@@ -74,19 +74,19 @@ static int ouichefs_write_inode(struct inode *inode,
 	disk_inode += inode_shift;
 
 	/* update the mode using what the generic inode has */
-	disk_inode->i_mode = inode->i_mode;
-	disk_inode->i_uid = i_uid_read(inode);
-	disk_inode->i_gid = i_gid_read(inode);
-	disk_inode->i_size = inode->i_size;
-	disk_inode->i_ctime = inode->i_ctime.tv_sec;
-	disk_inode->i_nctime = inode->i_ctime.tv_nsec;
-	disk_inode->i_atime = inode->i_atime.tv_sec;
-	disk_inode->i_natime = inode->i_atime.tv_nsec;
-	disk_inode->i_mtime = inode->i_mtime.tv_sec;
-	disk_inode->i_nmtime = inode->i_mtime.tv_nsec;
-	disk_inode->i_blocks = inode->i_blocks;
-	disk_inode->i_nlink = inode->i_nlink;
-	disk_inode->index_block = ci->index_block;
+	disk_inode->i_mode = cpu_to_le32(inode->i_mode);
+	disk_inode->i_uid = cpu_to_le32(i_uid_read(inode));
+	disk_inode->i_gid = cpu_to_le32(i_gid_read(inode));
+	disk_inode->i_size = cpu_to_le32(inode->i_size);
+	disk_inode->i_ctime = cpu_to_le32(inode->i_ctime.tv_sec);
+	disk_inode->i_nctime = cpu_to_le64(inode->i_ctime.tv_nsec);
+	disk_inode->i_atime = cpu_to_le32(inode->i_atime.tv_sec);
+	disk_inode->i_natime = cpu_to_le64(inode->i_atime.tv_nsec);
+	disk_inode->i_mtime = cpu_to_le32(inode->i_mtime.tv_sec);
+	disk_inode->i_nmtime = cpu_to_le64(inode->i_mtime.tv_nsec);
+	disk_inode->i_blocks = cpu_to_le32(inode->i_blocks);
+	disk_inode->i_nlink = cpu_to_le32(inode->i_nlink);
+	disk_inode->index_block = cpu_to_le32(ci->index_block);
 
 	mark_buffer_dirty(bh);
 	sync_dirty_buffer(bh);
@@ -107,13 +107,13 @@ static int sync_sb_info(struct super_block *sb, int wait)
 		return -EIO;
 	disk_sb = (struct ouichefs_sb_info *)bh->b_data;
 
-	disk_sb->nr_blocks = sbi->nr_blocks;
-	disk_sb->nr_inodes = sbi->nr_inodes;
-	disk_sb->nr_istore_blocks = sbi->nr_istore_blocks;
-	disk_sb->nr_ifree_blocks = sbi->nr_ifree_blocks;
-	disk_sb->nr_bfree_blocks = sbi->nr_bfree_blocks;
-	disk_sb->nr_free_inodes = sbi->nr_free_inodes;
-	disk_sb->nr_free_blocks = sbi->nr_free_blocks;
+	disk_sb->nr_blocks = cpu_to_le32(sbi->nr_blocks);
+	disk_sb->nr_inodes = cpu_to_le32(sbi->nr_inodes);
+	disk_sb->nr_istore_blocks = cpu_to_le32(sbi->nr_istore_blocks);
+	disk_sb->nr_ifree_blocks = cpu_to_le32(sbi->nr_ifree_blocks);
+	disk_sb->nr_bfree_blocks = cpu_to_le32(sbi->nr_bfree_blocks);
+	disk_sb->nr_free_inodes = cpu_to_le32(sbi->nr_free_inodes);
+	disk_sb->nr_free_blocks = cpu_to_le32(sbi->nr_free_blocks);
 
 	mark_buffer_dirty(bh);
 	if (wait)
@@ -254,7 +254,7 @@ int ouichefs_fill_super(struct super_block *sb, void *data, int silent)
 	csb = (struct ouichefs_sb_info *)bh->b_data;
 
 	/* Check magic number */
-	if (csb->magic != sb->s_magic) {
+	if (le32_to_cpu(csb->magic) != sb->s_magic) {
 		pr_err("Wrong magic number\n");
 		ret = -EPERM;
 		goto release;
@@ -266,13 +266,13 @@ int ouichefs_fill_super(struct super_block *sb, void *data, int silent)
 		ret = -ENOMEM;
 		goto release;
 	}
-	sbi->nr_blocks = csb->nr_blocks;
-	sbi->nr_inodes = csb->nr_inodes;
-	sbi->nr_istore_blocks = csb->nr_istore_blocks;
-	sbi->nr_ifree_blocks = csb->nr_ifree_blocks;
-	sbi->nr_bfree_blocks = csb->nr_bfree_blocks;
-	sbi->nr_free_inodes = csb->nr_free_inodes;
-	sbi->nr_free_blocks = csb->nr_free_blocks;
+	sbi->nr_blocks = le32_to_cpu(csb->nr_blocks);
+	sbi->nr_inodes = le32_to_cpu(csb->nr_inodes);
+	sbi->nr_istore_blocks = le32_to_cpu(csb->nr_istore_blocks);
+	sbi->nr_ifree_blocks = le32_to_cpu(csb->nr_ifree_blocks);
+	sbi->nr_bfree_blocks = le32_to_cpu(csb->nr_bfree_blocks);
+	sbi->nr_free_inodes = le32_to_cpu(csb->nr_free_inodes);
+	sbi->nr_free_blocks = le32_to_cpu(csb->nr_free_blocks);
 	sb->s_fs_info = sbi;
 
 	brelse(bh);
