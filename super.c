@@ -273,6 +273,7 @@ int ouichefs_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->nr_bfree_blocks = csb->nr_bfree_blocks;
 	sbi->nr_free_inodes = csb->nr_free_inodes;
 	sbi->nr_free_blocks = csb->nr_free_blocks;
+	sbi->last_snapshot = csb->last_snapshot;
 	sb->s_fs_info = sbi;
 
 	brelse(bh);

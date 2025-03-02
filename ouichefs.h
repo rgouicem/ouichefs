@@ -42,8 +42,10 @@ struct ouichefs_inode {
 	uint32_t i_gid; /* Group id */
 	uint32_t i_size; /* Size in bytes */
 	uint32_t i_ctime; /* Inode change time (sec)*/
+	uint32_t index_snapshot; /* Index of corresponding snapshot */
 	uint64_t i_nctime; /* Inode change time (nsec) */
 	uint32_t i_atime; /* Access time (sec) */
+	uint32_t i_parent; /* Inode with old data of last snapshot */
 	uint64_t i_natime; /* Access time (nsec) */
 	uint32_t i_mtime; /* Modification time (sec) */
 	uint64_t i_nmtime; /* Modification time (nsec) */
@@ -57,8 +59,24 @@ struct ouichefs_inode_info {
 	struct inode vfs_inode;
 };
 
+struct ouichefs_snap_node {
+	uint32_t index; /* Index of parent snapshot */
+	uint32_t ctime; /* Creation time (sec) */
+	struct ouichefs_snap *next_sibling;
+	struct ouichefs_snap *first_child;
+};
+
+struct ouichefs_snap_disk {
+	uint32_t index_parent; /* Index of parent snapshot */
+	uint32_t ctime; /* Creation time (sec) */
+};
+
 #define OUICHEFS_INODES_PER_BLOCK \
 	(OUICHEFS_BLOCK_SIZE / sizeof(struct ouichefs_inode))
+
+#define OUICHEFS_MAX_SNAPSHOTS \
+	((OUICHEFS_BLOCK_SIZE - sizeof(struct ouichefs_sb_info) \
+	  / sizeof(struct ouichefs_snap_disk))
 
 struct ouichefs_sb_info {
 	uint32_t magic; /* Magic number */
@@ -75,6 +93,8 @@ struct ouichefs_sb_info {
 
 	unsigned long *ifree_bitmap; /* In-memory free inodes bitmap */
 	unsigned long *bfree_bitmap; /* In-memory free blocks bitmap */
+
+	uint32_t last_snapshot; /* Index of last snashot */
 };
 
 struct ouichefs_file_index_block {
@@ -95,6 +115,9 @@ int ouichefs_fill_super(struct super_block *sb, void *data, int silent);
 int ouichefs_init_inode_cache(void);
 void ouichefs_destroy_inode_cache(void);
 struct inode *ouichefs_iget(struct super_block *sb, unsigned long ino);
+
+/* snapshot functions */
+struct ouichefs_snap_node *ouichefs_grow_snap_tree(struct super_block *sb);
 
 /* file functions */
 extern const struct file_operations ouichefs_file_ops;
