@@ -248,10 +248,10 @@ static int write_bfree_blocks(int fd, struct ouichefs_superblock *sb)
 	if (!block)
 		return -1;
 	bfree = (uint64_t *)block;
+	int written_blocks = 0;
 
 	/*
 	 * First blocks (incl. sb + istore + ifree + bfree + 1 used block)
-	 * we suppose it won't go further than the first block
 	 */
 	memset(bfree, 0xff, OUICHEFS_BLOCK_SIZE);
 	i = 0;
@@ -263,10 +263,22 @@ static int write_bfree_blocks(int fd, struct ouichefs_superblock *sb)
 			if (!nr_used)
 				break;
 		}
+		// Write the old block and start a new block, if we reached maximum block size.
+		if (i == OUICHEFS_BLOCK_SIZE / sizeof(typeof(line))) {
+			ret = write(fd, bfree, OUICHEFS_BLOCK_SIZE);
+			if (ret != OUICHEFS_BLOCK_SIZE) {
+				ret = -1;
+				goto end;
+			}
+			memset(bfree, 0xff, OUICHEFS_BLOCK_SIZE);
+			i = 0;
+			++written_blocks;
+		}
 		bfree[i] = htole64(line);
 		i++;
 	}
 	ret = write(fd, bfree, OUICHEFS_BLOCK_SIZE);
+	++written_blocks;
 	if (ret != OUICHEFS_BLOCK_SIZE) {
 		ret = -1;
 		goto end;
@@ -274,7 +286,7 @@ static int write_bfree_blocks(int fd, struct ouichefs_superblock *sb)
 
 	/* other blocks */
 	memset(bfree, 0xff, OUICHEFS_BLOCK_SIZE);
-	for (i = 1; i < le32toh(sb->nr_bfree_blocks); i++) {
+	for (i = written_blocks; i < le32toh(sb->nr_bfree_blocks); i++) {
 		ret = write(fd, bfree, OUICHEFS_BLOCK_SIZE);
 		if (ret != OUICHEFS_BLOCK_SIZE) {
 			ret = -1;
