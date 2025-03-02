@@ -96,6 +96,12 @@ int ouichefs_init_inode_cache(void);
 void ouichefs_destroy_inode_cache(void);
 struct inode *ouichefs_iget(struct super_block *sb, unsigned long ino);
 
+/* snapshot functions */
+struct ouichefs_snapshot_store_obj *create_snapshot_store_obj(
+	const char *name, struct kset *ouichefs_kset);
+void destroy_snapshot_store_obj(struct super_block *sb,
+	struct kset *ouichefs_kset);
+
 /* file functions */
 extern const struct file_operations ouichefs_file_ops;
 extern const struct file_operations ouichefs_dir_ops;
