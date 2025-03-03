@@ -19,6 +19,7 @@
  */
 struct ouichefs_snapshot_store_obj {
 	struct kobject kobj;
+	uuid_t id;
 	/* Todo */
 };
 #define to_ouichefs_snapshot_store_obj(x) \
@@ -148,7 +149,7 @@ static const struct kobj_type ouichefs_snapshot_store_ktype = {
 * Create a directory to manage snapshots for a specific partition
 */
 struct ouichefs_snapshot_store_obj *create_snapshot_store_obj(
-	const char *name, struct kset *ouichefs_kset)
+	const char *name, struct kset *ouichefs_kset, uuid_t id)
 {
 	struct ouichefs_snapshot_store_obj *snapshot_store;
 	int retval;
@@ -158,7 +159,8 @@ struct ouichefs_snapshot_store_obj *create_snapshot_store_obj(
 		return NULL;
 
 	snapshot_store->kobj.kset = ouichefs_kset;
-	/* Todo: link additional attributes, e.g. identifier for a superblock*/
+	snapshot_store->id = id;
+	/* Todo: link additional attributes */
 
 	retval = kobject_init_and_add(&snapshot_store->kobj,
 		&ouichefs_snapshot_store_ktype, NULL, "%s", name);
@@ -179,13 +181,14 @@ void destroy_snapshot_store_obj(struct super_block *sb,
 	struct kset *ouichefs_kset)
 {
 	struct kobject *kobj;
-	// struct ouichefs_snapshot_store_obj *snapshot_store;
+	struct ouichefs_snapshot_store_obj *snapshot_store;
 
 	list_for_each_entry(kobj, &ouichefs_kset->list, entry) {
-		// struct ouichefs_snapshot_store_obj *tmp_store = to_ouichefs_snapshot_store_obj(kobj);
-		/* Todo: Some way to identify ouichefs_snapshot_store_obj for the given superblock */
+		snapshot_store = to_ouichefs_snapshot_store_obj(kobj);
+		if (memcmp(sb->s_uuid.b, snapshot_store->id.b, UUID_SIZE) == 0) {
+			pr_info("Matched snapshot fount");
+			kobject_put(&snapshot_store->kobj);
+			break;
+		}
 	}
-	// if (snapshot_store) {
-	//	 kobject_put(&snapshot_store->kobj);
-	// }
 }
