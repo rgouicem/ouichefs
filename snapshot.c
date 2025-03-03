@@ -18,6 +18,7 @@
 
 void set_backup_flags(struct inode *inode)
 {
+	pr_info("start setup backup flags\n");
 	struct super_block *sb = inode->i_sb;
 	struct ouichefs_inode_info *ci = OUICHEFS_INODE(inode);
 
@@ -25,6 +26,7 @@ void set_backup_flags(struct inode *inode)
 		return;
 
 	ci->is_backup = true;
+	pr_info("set indode backup to true\n");
 
 	// Mark the inode as dirty to ensure it gets written back to disk
 	mark_inode_dirty(inode);
@@ -54,7 +56,7 @@ void set_backup_flags(struct inode *inode)
 
 			child_inode =
 				ouichefs_iget(sb, dir_block->files[i].inode);
-			pr_info("Setting backup flag for %s", dir_block-> files[i].filename);
+			pr_info("Setting backup flag for %s\n", dir_block-> files[i].filename);
 			if (IS_ERR(child_inode))
 				continue;
 
@@ -69,6 +71,7 @@ void set_backup_flags(struct inode *inode)
 
 struct snapshot_info *create_snapshot(struct super_block *sb)
 {
+	pr_info("start create snapshot");
 	// TODO: USE A OUICHEFS BLOCK TO STORE SN_INFO
 	struct snapshot_info *sn_info =
 		kmalloc(sizeof(struct snapshot_info), GFP_KERNEL);
@@ -133,6 +136,7 @@ struct snapshot_info *create_snapshot(struct super_block *sb)
 
 	memcpy(snapshot_index, root_index, OUICHEFS_BLOCK_SIZE);
 
+	pr_info("entering backup flags");
 	set_backup_flags(root_inode);
 
 	thaw_super(sb);
@@ -153,7 +157,6 @@ struct snapshot_info *create_snapshot(struct super_block *sb)
 			      1;
 	}
 
-	sync_filesystem(sb);
 
 	return sn_info;
 
