@@ -9,6 +9,7 @@
 #include "linux/container_of.h"
 #include "linux/fs.h"
 #include "linux/gfp_types.h"
+#include "linux/list.h"
 #include "linux/printk.h"
 #include "linux/slab.h"
 #include "ouichefs.h"
@@ -139,6 +140,8 @@ struct snapshot_info *create_snapshot(struct super_block *sb)
 	sn_info->inode = inode;
 	sn_info->timestamp = current_time(inode).tv_sec;
 
+	INIT_LIST_HEAD(&sbi->snapshot_list);
+
 	list_add_tail(&sn_info->list, &sbi->snapshot_list);
 
 	if (sbi->snapshot_list.next == &sn_info->list) {
@@ -149,6 +152,9 @@ struct snapshot_info *create_snapshot(struct super_block *sb)
 				      ->id +
 			      1;
 	}
+
+	sync_filesystem(sb);
+
 	return sn_info;
 
 put_inode:
@@ -158,4 +164,3 @@ put_ino:
 
 	return ERR_PTR(ret);
 }
-

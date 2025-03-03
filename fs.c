@@ -12,8 +12,18 @@
 #include <linux/fs.h>
 #include "linux/container_of.h"
 #include "linux/kobject.h"
-
 #include "ouichefs.h"
+
+struct ouichefs_partition_obj {
+	struct kobject kobj;
+	struct super_block *sb;
+};
+
+static inline struct ouichefs_partition_obj *
+to_ouichefs_partition_obj(struct kobject *kobj)
+{
+	return container_of(kobj, struct ouichefs_partition_obj, kobj);
+}
 
 /* 
  * Attributes and their functions.
@@ -33,7 +43,11 @@ static ssize_t list_show(struct kobject *kobj, struct kobj_attribute *attr,
 static ssize_t create_store(struct kobject *kobj, struct kobj_attribute *attr,
 			    const char *buf, size_t count)
 {
-	return 0;
+	struct ouichefs_partition_obj *part_obj =
+		to_ouichefs_partition_obj(kobj);
+	create_snapshot(part_obj->sb);
+
+	return count;
 }
 
 static ssize_t destroy_store(struct kobject *kobj, struct kobj_attribute *attr,
@@ -113,14 +127,14 @@ static const struct sysfs_ops default_sysfs_ops = {
 	.store = default_attr_store,
 };
 
-static void default_release(struct kobject *kobj)
+static void part_obj_release(struct kobject *kobj)
 {
-	kfree(kobj);
+	kfree(to_ouichefs_partition_obj(kobj));
 }
 
 static const struct kobj_type ouichefs_ktype = {
 	.sysfs_ops = &default_sysfs_ops,
-	.release = default_release,
+	.release = part_obj_release,
 	.default_groups = ouichefs_default_groups,
 };
 
@@ -130,25 +144,26 @@ static struct kset *ouichefs_set;
  * Adds a kobject with the provided name.  Implicitly creates
  * the kobj_attributes needed for each partition.
  */
-static struct kobject *create_partition_obj(const char *name)
+static struct kobject *create_partition_obj(const char *name,
+					    struct super_block *sb)
 {
-	struct kobject *kobj;
+	struct ouichefs_partition_obj *part_obj;
 	int retval;
 
-	kobj = kzalloc(sizeof(*kobj), GFP_KERNEL);
-	if (!kobj)
+	part_obj = kzalloc(sizeof(*part_obj), GFP_KERNEL);
+	if (!part_obj)
 		return NULL;
 
-	kobj->kset = ouichefs_set;
-
-	/*
+	part_obj->kobj.kset = ouichefs_set;
+	part_obj->sb = sb;
+	/* TODO: CHANGE THAT LOL
 	 * Initialize and add the kobject to /sys/fs/ouichefs.
    * We use name + 5 to remove the '/dev/' prefix in the name.
 	 */
-	retval = kobject_init_and_add(kobj, &ouichefs_ktype, NULL, "%s",
-				      name + 5);
+	retval = kobject_init_and_add(&part_obj->kobj, &ouichefs_ktype, NULL,
+				      "%s", name + 5);
 	if (retval) {
-		kobject_put(kobj);
+		kobject_put(&part_obj->kobj);
 		return NULL;
 	}
 
@@ -156,9 +171,9 @@ static struct kobject *create_partition_obj(const char *name)
 	 * We are always responsible for sending the uevent that the kobject
 	 * was added to the system.
 	 */
-	kobject_uevent(kobj, KOBJ_ADD);
+	kobject_uevent(&part_obj->kobj, KOBJ_ADD);
 
-	return kobj;
+	return &part_obj->kobj;
 }
 
 /*
@@ -177,7 +192,7 @@ struct dentry *ouichefs_mount(struct file_system_type *fs_type, int flags,
 		pr_info("'%s' mount success\n", dev_name);
 
 	// Create /sys/fs/ouichefs entry
-	create_partition_obj(dev_name);
+	create_partition_obj(dev_name, dentry->d_sb);
 
 	return dentry;
 }
