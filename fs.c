@@ -14,6 +14,8 @@
 
 #include "ouichefs.h"
 
+static u128 partition_id = 0;
+
 static struct kset *ouichefs_kset;
 
 /*
@@ -31,20 +33,26 @@ struct dentry *ouichefs_mount(struct file_system_type *fs_type, int flags,
 	else
 		pr_info("'%s' mount success\n", dev_name);
 
-	// Create the sysfs dir for the partition
+	// Create the sysfs dir for the partition and assign a unique id
+	uuid_t id;
 	char dirname[sizeof(dev_name) + 1];
 	const char *slash = strrchr(dev_name, '/');
 
-    if (slash != NULL) {
-        strncpy(dirname, slash + 1, sizeof(dirname) - 1);
-    } else {
+	if (slash != NULL) {
+		strncpy(dirname, slash + 1, sizeof(dirname) - 1);
+	} else {
 		strncpy(dirname, dev_name, sizeof(dirname) - 1);
-    }
+	}
 	dirname[sizeof(dirname) - 1] = '\0';
+	memcpy(id.b, &partition_id, sizeof(u128));
 
-	if (!create_snapshot_store_obj(dirname, ouichefs_kset)) {
+	if (!create_snapshot_store_obj(dirname, ouichefs_kset, id)) {
 		dentry = ERR_PTR(-ENOMEM);
 		pr_err("'%s' mount failure: snapshot store failure\n", dev_name);
+	} else {
+		dentry->d_sb->s_uuid = id;
+		partition_id++;
+		pr_info("create sb uuid: %pU\n", id.b);
 	}
 
 	return dentry;
