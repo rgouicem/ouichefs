@@ -32,6 +32,7 @@ struct ouichefs_inode {
 	uint32_t i_blocks; /* Block count (subdir count for directories) */
 	uint32_t i_nlink; /* Hard links count */
 	uint32_t index_block; /* Block with list of blocks for this file */
+	uint8_t is_backup;
 };
 
 #define OUICHEFS_INODES_PER_BLOCK \
@@ -165,6 +166,7 @@ static int write_inode_store(int fd, struct ouichefs_superblock *sb)
 	inode->i_blocks = htole32(1);
 	inode->i_nlink = htole32(2);
 	inode->index_block = htole32(first_data_block);
+  inode->is_backup = 0; 
 
 	ret = write(fd, block, OUICHEFS_BLOCK_SIZE);
 	if (ret != OUICHEFS_BLOCK_SIZE) {

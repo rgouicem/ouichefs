@@ -71,6 +71,7 @@ struct inode *ouichefs_iget(struct super_block *sb, unsigned long ino)
 	set_nlink(inode, le32_to_cpu(cinode->i_nlink));
 
 	ci->index_block = le32_to_cpu(cinode->index_block);
+	ci->is_backup = cinode->is_backup;
 
 	if (S_ISDIR(inode->i_mode)) {
 		inode->i_fop = &ouichefs_dir_ops;
@@ -197,6 +198,8 @@ static struct inode *ouichefs_new_inode(struct inode *dir, mode_t mode)
 		inode->i_mapping->a_ops = &ouichefs_aops;
 		set_nlink(inode, 1);
 	}
+
+	ci->is_backup = 0;
 
 	inode->i_ctime = inode->i_atime = inode->i_mtime = current_time(inode);
 

@@ -87,6 +87,7 @@ static int ouichefs_write_inode(struct inode *inode,
 	disk_inode->i_blocks = inode->i_blocks;
 	disk_inode->i_nlink = inode->i_nlink;
 	disk_inode->index_block = ci->index_block;
+	disk_inode->is_backup = ci->is_backup;
 
 	mark_buffer_dirty(bh);
 	sync_dirty_buffer(bh);

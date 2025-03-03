@@ -51,11 +51,13 @@ struct ouichefs_inode {
 	uint32_t i_blocks; /* Block count */
 	uint32_t i_nlink; /* Hard links count */
 	uint32_t index_block; /* Block with list of blocks for this file */
+	uint8_t is_backup;
 };
 
 struct ouichefs_inode_info {
 	uint32_t index_block;
 	struct inode vfs_inode;
+	uint8_t is_backup;
 };
 
 #define OUICHEFS_INODES_PER_BLOCK \
@@ -77,7 +79,7 @@ struct ouichefs_sb_info {
 	unsigned long *ifree_bitmap; /* In-memory free inodes bitmap */
 	unsigned long *bfree_bitmap; /* In-memory free blocks bitmap */
 
-  struct list_head snapshot_list; /* list of snapshots */
+	struct list_head snapshot_list; /* list of snapshots */
 };
 
 struct ouichefs_file_index_block {
@@ -111,14 +113,12 @@ extern const struct address_space_operations ouichefs_aops;
 
 /* snapshot metadata */
 struct snapshot_info {
-  struct list_head list;
-  uint64_t timestamp;
-  uint32_t id;
-  struct inode *inode;
+	struct list_head list;
+	uint64_t timestamp;
+	uint32_t id;
+	struct inode *inode;
 };
 
-struct snapshot_info* create_snapshot(struct super_block *sb);
-
-
+struct snapshot_info *create_snapshot(struct super_block *sb);
 
 #endif /* _OUICHEFS_H */
