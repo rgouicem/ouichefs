@@ -7,6 +7,7 @@
 #ifndef _OUICHEFS_H
 #define _OUICHEFS_H
 
+#include "linux/types.h"
 #include <linux/fs.h>
 
 #define OUICHEFS_MAGIC 0x48434957
@@ -75,6 +76,8 @@ struct ouichefs_sb_info {
 
 	unsigned long *ifree_bitmap; /* In-memory free inodes bitmap */
 	unsigned long *bfree_bitmap; /* In-memory free blocks bitmap */
+
+  struct list_head snapshot_list; /* list of snapshots */
 };
 
 struct ouichefs_file_index_block {
@@ -105,5 +108,17 @@ extern const struct address_space_operations ouichefs_aops;
 #define OUICHEFS_SB(sb) (sb->s_fs_info)
 #define OUICHEFS_INODE(inode) \
 	(container_of(inode, struct ouichefs_inode_info, vfs_inode))
+
+/* snapshot metadata */
+struct snapshot_info {
+  struct list_head list;
+  uint64_t timestamp;
+  uint32_t id;
+  struct inode *inode;
+};
+
+struct snapshot_info* create_snapshot(struct super_block *sb);
+
+
 
 #endif /* _OUICHEFS_H */
