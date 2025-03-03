@@ -2,12 +2,13 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/ioctl.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdint.h>
-#include <errno.h>
 #include <endian.h>
 #include <string.h>
+#include <linux/fs.h>
 
 #define OUICHEFS_MAGIC 0x48434957
 
@@ -81,7 +82,7 @@ static inline uint32_t idiv_ceil(uint32_t a, uint32_t b)
 	return ret;
 }
 
-static struct ouichefs_superblock *write_superblock(int fd, struct stat *fstats)
+static struct ouichefs_superblock *write_superblock(int fd, struct stat *fstats, uint64_t size)
 {
 	int ret;
 	struct ouichefs_superblock *sb;
@@ -93,7 +94,7 @@ static struct ouichefs_superblock *write_superblock(int fd, struct stat *fstats)
 	if (!sb)
 		return NULL;
 
-	nr_blocks = fstats->st_size / OUICHEFS_BLOCK_SIZE;
+	nr_blocks = size / OUICHEFS_BLOCK_SIZE;
 	nr_inodes = nr_blocks;
 	mod = nr_inodes % OUICHEFS_INODES_PER_BLOCK;
 	if (mod != 0)
@@ -361,18 +362,30 @@ int main(int argc, char **argv)
 		goto fclose;
 	}
 
+	/* Get image size */
+	uint64_t size = 0;
+	if (stat_buf.st_mode & S_IFREG) {
+		size = stat_buf.st_size;
+	} else if (stat_buf.st_mode & S_IFBLK) {
+		ioctl(fd, BLKGETSIZE64, &size);
+	} else {
+		fprintf(stderr, "Unsupported file type\n");
+		ret = EXIT_FAILURE;
+		goto fclose;
+	}
+
 	/* Check if image is large enough */
 	min_size = 100 * OUICHEFS_BLOCK_SIZE;
-	if (stat_buf.st_size < min_size) {
+	if (size < min_size) {
 		fprintf(stderr,
 			"File is not large enough (size=%ld, min size=%ld)\n",
-			stat_buf.st_size, min_size);
+			size, min_size);
 		ret = EXIT_FAILURE;
 		goto fclose;
 	}
 
 	/* Write superblock (block 0) */
-	sb = write_superblock(fd, &stat_buf);
+	sb = write_superblock(fd, &stat_buf, size);
 	if (!sb) {
 		perror("write_superblock():");
 		ret = EXIT_FAILURE;
