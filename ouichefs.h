@@ -118,7 +118,7 @@ struct inode *ouichefs_iget(struct super_block *sb, unsigned long ino);
 
 /* snapshot functions */
 struct ouichefs_snapshot_store_obj *create_snapshot_store_obj(
-	const char *name, struct kset *ouichefs_kset, uuid_t id);
+	const char *name, struct kset *ouichefs_kset, struct super_block *sb);
 void destroy_snapshot_store_obj(struct super_block *sb,
 	struct kset *ouichefs_kset);
 struct ouichefs_snap_node *ouichefs_grow_snap_tree(struct super_block *sb);
