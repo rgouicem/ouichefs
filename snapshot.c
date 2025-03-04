@@ -180,9 +180,9 @@ static struct inode *find_parent_dir(struct inode *inode)
 	int i;
 
 	/* Only directories have parents */
-	/* if (!S_ISDIR(inode->i_mode)) */
-	pr_err("Only directories have parents");
-	return NULL;
+	if (!S_ISDIR(inode->i_mode))
+		pr_err("Only directories have parents");
+		return NULL;
 
 	/* Read the directory block */
 	bh = sb_bread(sb, ci->index_block);
@@ -217,14 +217,13 @@ static struct inode *find_parent_dir(struct inode *inode)
  * Create a new inode of the same type as the source
  * Returns the new inode or ERR_PTR on error
  */
-static struct inode *copy_new_inode(struct inode *src)
+static struct inode *copy_new_inode(struct inode *src, struct inode *parent_dir)
 {
 	// TODO: Actually copy everything
 	// Also this only works on dirs for now
 	if (!S_ISDIR(src->i_mode))
 		pr_err("Only directories have parents");
 	return NULL;
-	struct inode *parent_dir = find_parent_dir(src);
 	pr_info("Creating new inode based on source inode %lu\n", src->i_ino);
 	struct super_block *sb = src->i_sb;
 	struct ouichefs_sb_info *sbi = OUICHEFS_SB(sb);
@@ -469,12 +468,24 @@ int traverse_backup_tree(struct inode *parent, struct inode *child_backup,
 	int ret = 0;
 	struct inode *grandparent;
 
+
+	if (parent->i_ino == 1) {
+		pr_info("Reached root inode traversal is finished");
+		return 0;
+	}
+
+	if (parent == NULL) {
+		pr_info("Parent is NULL finished traversal");
+		return 0;
+	}
 	// If parent is not marked for backup, we're done
 	if (!OUICHEFS_INODE(parent)->is_backup) {
 		pr_info("Parent inode %lu is not marked for backup, stopping traversal\n",
 			parent->i_ino);
 		return 0;
 	}
+	grandparent = find_parent_dir(parent);
+
 
 	find_name(parent, old_child, child_name);
 
@@ -482,7 +493,7 @@ int traverse_backup_tree(struct inode *parent, struct inode *child_backup,
 		child_name, child_backup->i_ino, parent->i_ino);
 
 	// Create new parent inode
-	new_parent = copy_new_inode(parent);
+	new_parent = copy_new_inode(parent, grandparent);
 	if (IS_ERR(new_parent)) {
 		pr_err("Failed to create new parent inode: %ld\n",
 		       PTR_ERR(new_parent));
@@ -495,7 +506,6 @@ int traverse_backup_tree(struct inode *parent, struct inode *child_backup,
 	// For directories, ensure . and .. entries are properly set up
 	if (S_ISDIR(new_parent->i_mode)) {
 		// Find parent of the original parent (grandparent)
-		grandparent = find_parent_dir(parent);
 		if (!grandparent) {
 			pr_err("Failed to find grandparent for inode %lu\n",
 			       parent->i_ino);
@@ -519,7 +529,8 @@ int traverse_backup_tree(struct inode *parent, struct inode *child_backup,
 	// replace child entry to new parent's directory
 	ret = replace_inode_dir(new_parent, child_backup, old_child);
 	if (ret) {
-		pr_err("Failed to add child entry to new parent: %d\n", ret);
+		pr_err("Failed to replace child entry to new parent: %d\n",
+		       ret);
 		iput(new_parent);
 		return ret;
 	}
@@ -560,10 +571,9 @@ int traverse_backup_tree(struct inode *parent, struct inode *child_backup,
 	return ret;
 }
 
-int traverse_backup_tree_start(struct inode *leaf)
+int traverse_backup_tree_start(struct inode *leaf, struct inode *parent)
 {
 	struct ouichefs_inode_info *leaf_ci;
-	struct inode *parent;
 	struct inode *leaf_backup;
 	int ret = 0;
 
@@ -576,13 +586,12 @@ int traverse_backup_tree_start(struct inode *leaf)
 	}
 
 	// Find the parent of the leaf
-	parent = find_parent_dir(leaf);
 	if (!parent) {
 		pr_info("No parent found for inode %lu, must be root\n",
 			leaf->i_ino);
 		return 0;
 	}
-	leaf_backup = copy_new_inode(leaf);
+	leaf_backup = copy_new_inode(leaf, parent);
 	if (IS_ERR(leaf_backup)) {
 		pr_err("Failed to create leaf_backup: %ld\n",
 		       PTR_ERR(leaf_backup));
