@@ -9,6 +9,7 @@
 #include "linux/err.h"
 #include "linux/fs.h"
 #include "linux/printk.h"
+#include "linux/stddef.h"
 #include "ouichefs.h"
 #include "bitmap.h"
 
@@ -66,6 +67,103 @@ void set_backup_flags(struct inode *inode)
 		brelse(dir_bh);
 	}
 }
+struct snapshot_info *create_snapshot(struct super_block *sb)
+{
+	// TODO: USE A OUICHEFS BLOCK TO STORE SN_INFO
+	struct snapshot_info *sn_info =
+		kmalloc(sizeof(struct snapshot_info), GFP_KERNEL);
+
+	if (sn_info == NULL) {
+		return ERR_PTR(-ENOMEM);
+	}
+
+	struct inode *inode;
+	struct ouichefs_inode_info *ci;
+	struct ouichefs_sb_info *sbi;
+	uint32_t ino, bno;
+	int ret;
+
+	/* Check if inodes are available */
+	sbi = OUICHEFS_SB(sb);
+	if (sbi->nr_free_inodes == 0 || sbi->nr_free_blocks == 0)
+		return ERR_PTR(-ENOSPC);
+
+	/* Get a new free inode */
+	ino = get_free_inode(sbi);
+	if (!ino)
+		return ERR_PTR(-ENOSPC);
+	inode = ouichefs_iget(sb, ino);
+	if (IS_ERR(inode)) {
+		ret = PTR_ERR(inode);
+		goto put_ino;
+	}
+	ci = OUICHEFS_INODE(inode);
+
+	/* Get a free block for this new inode's index */
+	bno = get_free_block(sbi);
+	if (!bno) {
+		ret = -ENOSPC;
+		goto put_inode;
+	}
+	ci->index_block = bno;
+
+	/* Initialize inode */
+	inode_init_owner(&nop_mnt_idmap, inode, NULL, S_IFDIR);
+	inode->i_blocks = 1;
+	inode->i_size = OUICHEFS_BLOCK_SIZE;
+	inode->i_fop = &ouichefs_dir_ops;
+	set_nlink(inode, 2);
+
+	inode->i_ctime = inode->i_atime = inode->i_mtime = current_time(inode);
+
+	// TODO ERROR HANDLING
+
+	freeze_super(sb);
+
+	struct inode *root_inode = ouichefs_iget(sb, 1);
+	struct ouichefs_inode_info *root_ci;
+	root_ci = OUICHEFS_INODE(root_inode);
+	struct buffer_head *root_bh = sb_bread(sb, root_ci->index_block);
+	struct ouichefs_file_index_block *root_index =
+		(struct ouichefs_file_index_block *)root_bh->b_data;
+
+	struct buffer_head *snapshot_bh = sb_bread(sb, ci->index_block);
+	struct ouichefs_file_index_block *snapshot_index =
+		(struct ouichefs_file_index_block *)snapshot_bh->b_data;
+
+	memcpy(snapshot_index, root_index, OUICHEFS_BLOCK_SIZE);
+
+	set_backup_flags(root_inode);
+
+	thaw_super(sb);
+
+	sn_info->inode = inode;
+	sn_info->timestamp = current_time(inode).tv_sec;
+
+	INIT_LIST_HEAD(&sbi->snapshot_list);
+
+	list_add_tail(&sn_info->list, &sbi->snapshot_list);
+
+	if (sbi->snapshot_list.next == &sn_info->list) {
+		sn_info->id = 0;
+	} else {
+		sn_info->id = container_of(sn_info->list.prev,
+					   struct snapshot_info, list)
+				      ->id +
+			      1;
+	}
+
+	sync_filesystem(sb);
+
+	return sn_info;
+
+put_inode:
+	iput(inode);
+put_ino:
+	put_inode(sbi, ino);
+
+	return ERR_PTR(ret);
+}
 
 /**
  * Find the parent directory of an inode by looking for the ".." entry
@@ -82,8 +180,9 @@ static struct inode *find_parent_dir(struct inode *inode)
 	int i;
 
 	/* Only directories have parents */
-	if (!S_ISDIR(inode->i_mode))
-		return NULL;
+	/* if (!S_ISDIR(inode->i_mode)) */
+	pr_err("Only directories have parents");
+	return NULL;
 
 	/* Read the directory block */
 	bh = sb_bread(sb, ci->index_block);
@@ -121,6 +220,10 @@ static struct inode *find_parent_dir(struct inode *inode)
 static struct inode *copy_new_inode(struct inode *src)
 {
 	// TODO: Actually copy everything
+	// Also this only works on dirs for now
+	if (!S_ISDIR(src->i_mode))
+		pr_err("Only directories have parents");
+	return NULL;
 	struct inode *parent_dir = find_parent_dir(src);
 	pr_info("Creating new inode based on source inode %lu\n", src->i_ino);
 	struct super_block *sb = src->i_sb;
@@ -129,11 +232,9 @@ static struct inode *copy_new_inode(struct inode *src)
 	struct inode *inode;
 	uint32_t ino, bno;
 
-	/* Check if inodes are available */
 	if (sbi->nr_free_inodes == 0 || sbi->nr_free_blocks == 0)
 		return ERR_PTR(-ENOSPC);
 
-	/* Get a new free inode */
 	ino = get_free_inode(sbi);
 	if (!ino)
 		return ERR_PTR(-ENOSPC);
@@ -155,7 +256,6 @@ static struct inode *copy_new_inode(struct inode *src)
 	}
 	ci->index_block = bno;
 
-	/* Initialize inode */
 	inode_init_owner(&nop_mnt_idmap, inode, parent_dir, src->i_mode);
 	inode->i_blocks = 1;
 
@@ -217,6 +317,9 @@ static struct inode *copy_new_inode(struct inode *src)
  */
 static int add_dot_entries(struct inode *dir, struct inode *parent)
 {
+	if (!S_ISDIR(dir->i_mode))
+		pr_err("Only directories have parents");
+	return -1;
 	pr_info("Adding dot entries to directory inode %lu (parent: %lu)\n",
 		dir->i_ino, parent->i_ino);
 	struct super_block *sb = dir->i_sb;
@@ -244,92 +347,122 @@ static int add_dot_entries(struct inode *dir, struct inode *parent)
 	return 0;
 }
 
-/**
- * Copy a directory entry to destination directory
- */
-static int add_dir_entry(struct inode *dst_dir, const char *filename,
-			 struct inode *inode)
+/* in parent directory relink the old_child to new_child returns number of replaced inode in dir*/
+static int replace_inode_dir(struct inode *parent, struct inode *new_child,
+			     struct inode *old_child)
 {
-	pr_info("Adding entry '%s' (inode %lu) to directory %lu\n", filename,
-		inode->i_ino, dst_dir->i_ino);
-	struct super_block *sb = dst_dir->i_sb;
-	struct ouichefs_inode_info *ci_dst = OUICHEFS_INODE(dst_dir);
+	if (!S_ISDIR(parent->i_mode))
+		pr_err("Only directories have parents");
+	return -1;
+	pr_info("Replacing inode %lu with inode %lu in directory %lu",
+		old_child->i_ino, new_child->i_ino, parent->i_ino);
+	struct super_block *sb = parent->i_sb;
+	struct ouichefs_inode_info *ci_parent = OUICHEFS_INODE(parent);
 	struct buffer_head *bh;
 	struct ouichefs_dir_block *dir_block;
 	int i, ret = 0;
 
-	/* Read the destination directory block */
-	bh = sb_bread(sb, ci_dst->index_block);
+	bh = sb_bread(sb, ci_parent->index_block);
 	if (!bh)
 		return -EIO;
 
 	dir_block = (struct ouichefs_dir_block *)bh->b_data;
 
-	/* Find first free slot in destination directory */
+	/* Find the old inode in dirblock and replace it */
 	for (i = 0; i < OUICHEFS_MAX_SUBFILES; i++) {
-		if (dir_block->files[i].inode == 0)
-			break;
-	}
-
-	/* Check if destination directory is full */
-	if (i == OUICHEFS_MAX_SUBFILES) {
-		ret = -EMLINK;
-		goto out;
-	}
-
-	/* Add the entry to the destination directory */
-	dir_block->files[i].inode = inode->i_ino;
-	strncpy(dir_block->files[i].filename, filename, OUICHEFS_FILENAME_LEN);
-	dir_block->files[i].filename[OUICHEFS_FILENAME_LEN - 1] = '\0';
-
-	/* Mark the buffer as dirty and release it */
-	mark_buffer_dirty(bh);
-
-out:
-	brelse(bh);
-	return ret;
-}
-
-/**
- * Find the name of a child in its parent's directory
- * Returns true if found, false otherwise
- */
-static bool find_child_name(struct inode *parent, struct inode *child,
-			    char *name_out)
-{
-	struct super_block *sb = parent->i_sb;
-	struct ouichefs_inode_info *ci = OUICHEFS_INODE(parent);
-	struct buffer_head *bh;
-	struct ouichefs_dir_block *dir_block;
-	int i;
-	bool found = false;
-
-	if (!S_ISDIR(parent->i_mode))
-		return false;
-
-	bh = sb_bread(sb, ci->index_block);
-	if (!bh)
-		return false;
-
-	dir_block = (struct ouichefs_dir_block *)bh->b_data;
-
-	for (i = 0; i < OUICHEFS_MAX_SUBFILES; i++) {
-		if (dir_block->files[i].inode == child->i_ino &&
-		    strcmp(dir_block->files[i].filename, ".") != 0 &&
-		    strcmp(dir_block->files[i].filename, "..") != 0) {
-			strncpy(name_out, dir_block->files[i].filename,
-				OUICHEFS_FILENAME_LEN);
-			name_out[OUICHEFS_FILENAME_LEN - 1] = '\0';
-			found = true;
-			break;
+		if (dir_block->files[i].inode == old_child->i_ino) {
+			dir_block->files[i].inode = new_child->i_ino;
+			ret++;
 		}
 	}
 
+	mark_buffer_dirty(bh);
 	brelse(bh);
-	return found;
+	pr_info("Replaced %d entries in %lu", ret, parent->i_ino);
+	return ret;
 }
 
-int traverse_backup_tree(struct inode *parent, struct inode *child)
+/* in parent directory find name of child*/
+static int find_name(struct inode *parent, struct inode *child,
+		     char *filename_out)
+{
+	if (!S_ISDIR(parent->i_mode))
+		pr_err("Only directories have parents");
+	return -1;
+	pr_info("finding name of child %lu in parent %lu", child->i_ino,
+		parent->i_ino);
+	struct super_block *sb = parent->i_sb;
+	struct ouichefs_inode_info *ci_parent = OUICHEFS_INODE(parent);
+	struct buffer_head *bh;
+	struct ouichefs_dir_block *dir_block;
+	int i = 0;
+	int ret = -1;
+	filename_out = "name not found";
+
+	bh = sb_bread(sb, ci_parent->index_block);
+	if (!bh)
+		return -EIO;
+
+	dir_block = (struct ouichefs_dir_block *)bh->b_data;
+
+	/* Copy name to filename_out skipping dot entries */
+	for (i = 2; i < OUICHEFS_MAX_SUBFILES; i++) {
+		if (dir_block->files[i].inode == child->i_ino) {
+			strncpy(filename_out, dir_block->files[i].filename,
+				OUICHEFS_FILENAME_LEN);
+			ret = 0;
+		}
+	}
+
+	/* Mark the buffer as dirty and release it */
+	mark_buffer_dirty(bh);
+	brelse(bh);
+	pr_info("Found name");
+	return ret;
+}
+
+/* static int add_dir_entry(struct inode *dst_dir, const char *filename, */
+/* 			 struct inode *inode) */
+/* { */
+/* 	if (!S_ISDIR(dst_dir->i_mode)) */
+/* 		pr_err("Only directories have parents"); */
+/* 		return -1; */
+/* 	pr_info("Adding entry '%s' (inode %lu) to directory %lu\n", filename, */
+/* 		inode->i_ino, dst_dir->i_ino); */
+/* 	struct super_block *sb = dst_dir->i_sb; */
+/* 	struct ouichefs_inode_info *ci_dst = OUICHEFS_INODE(dst_dir); */
+/* 	struct buffer_head *bh; */
+/* 	struct ouichefs_dir_block *dir_block; */
+/* 	int i, ret = 0; */
+/**/
+/* 	bh = sb_bread(sb, ci_dst->index_block); */
+/* 	if (!bh) */
+/* 		return -EIO; */
+/**/
+/* 	dir_block = (struct ouichefs_dir_block *)bh->b_data; */
+/**/
+/* 	for (i = 0; i < OUICHEFS_MAX_SUBFILES; i++) { */
+/* 		if (dir_block->files[i].inode == 0) */
+/* 			break; */
+/* 	} */
+/**/
+/* 	if (i == OUICHEFS_MAX_SUBFILES) { */
+/* 		ret = -EMLINK; */
+/* 		goto out; */
+/* 	} */
+/**/
+/* 	dir_block->files[i].inode = inode->i_ino; */
+/* 	strncpy(dir_block->files[i].filename, filename, OUICHEFS_FILENAME_LEN); */
+/**/
+/* 	mark_buffer_dirty(bh); */
+/**/
+/* out: */
+/* 	brelse(bh); */
+/* 	return ret; */
+/* } */
+
+int traverse_backup_tree(struct inode *parent, struct inode *child_backup,
+			 struct inode *old_child)
 {
 	struct inode *new_parent;
 	char child_name[OUICHEFS_FILENAME_LEN];
@@ -343,15 +476,10 @@ int traverse_backup_tree(struct inode *parent, struct inode *child)
 		return 0;
 	}
 
-	// Find the child's name in parent's directory
-	if (!find_child_name(parent, child, child_name)) {
-		pr_err("Could not find child %lu in parent directory %lu\n",
-		       child->i_ino, parent->i_ino);
-		return -ENOENT;
-	}
+	find_name(parent, old_child, child_name);
 
 	pr_info("Found child '%s' (inode %lu) in parent directory %lu\n",
-		child_name, child->i_ino, parent->i_ino);
+		child_name, child_backup->i_ino, parent->i_ino);
 
 	// Create new parent inode
 	new_parent = copy_new_inode(parent);
@@ -388,8 +516,8 @@ int traverse_backup_tree(struct inode *parent, struct inode *child)
 		iput(grandparent);
 	}
 
-	// Add child entry to new parent's directory
-	ret = add_dir_entry(new_parent, child_name, child);
+	// replace child entry to new parent's directory
+	ret = replace_inode_dir(new_parent, child_backup, old_child);
 	if (ret) {
 		pr_err("Failed to add child entry to new parent: %d\n", ret);
 		iput(new_parent);
@@ -397,8 +525,8 @@ int traverse_backup_tree(struct inode *parent, struct inode *child)
 	}
 
 	// If child is a directory, update its ".." entry to point to new_parent
-	if (S_ISDIR(child->i_mode)) {
-		ret = add_dot_entries(child, new_parent);
+	if (S_ISDIR(child_backup->i_mode)) {
+		ret = add_dot_entries(child_backup, new_parent);
 		if (ret) {
 			pr_err("Failed to update .. entry in child: %d\n", ret);
 			iput(new_parent);
@@ -411,7 +539,8 @@ int traverse_backup_tree(struct inode *parent, struct inode *child)
 		if (OUICHEFS_INODE(grandparent)->is_backup) {
 			pr_info("Continuing traversal to grandparent %lu\n",
 				grandparent->i_ino);
-			ret = traverse_backup_tree(grandparent, new_parent);
+			ret = traverse_backup_tree(grandparent, new_parent,
+						   parent);
 			if (ret) {
 				iput(grandparent);
 				iput(new_parent);
@@ -435,6 +564,7 @@ int traverse_backup_tree_start(struct inode *leaf)
 {
 	struct ouichefs_inode_info *leaf_ci;
 	struct inode *parent;
+	struct inode *leaf_backup;
 	int ret = 0;
 
 	pr_info("Starting backup tree traversal with inode %lu\n", leaf->i_ino);
@@ -452,9 +582,15 @@ int traverse_backup_tree_start(struct inode *leaf)
 			leaf->i_ino);
 		return 0;
 	}
+	leaf_backup = copy_new_inode(leaf);
+	if (IS_ERR(leaf_backup)) {
+		pr_err("Failed to create leaf_backup: %ld\n",
+		       PTR_ERR(leaf_backup));
+		return PTR_ERR(leaf_backup);
+	}
 
 	// Traverse up the tree from the parent
-	ret = traverse_backup_tree(parent, leaf);
+	ret = traverse_backup_tree(parent, leaf_backup, leaf);
 
 	iput(parent);
 
