@@ -344,8 +344,10 @@ static int ouichefs_unlink(struct inode *dir, struct dentry *dentry)
 
 	/* Update inode stats */
 	dir->i_mtime = dir->i_atime = dir->i_ctime = current_time(dir);
-	if (S_ISDIR(inode->i_mode))
-		inode_dec_link_count(dir);
+	if (S_ISDIR(inode->i_mode)) {
+		inode_dec_link_count(dir); // for "../<this_dir>"
+		inode_dec_link_count(inode); // for "."
+	}
 	mark_inode_dirty(dir);
 
 	/*
