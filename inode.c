@@ -392,8 +392,8 @@ clean_inode:
 	inode->i_mode = 0;
 	inode->i_ctime.tv_sec = inode->i_mtime.tv_sec = inode->i_atime.tv_sec =
 		0;
-	inode->i_ctime.tv_nsec = inode->i_mtime.tv_nsec = inode->i_atime.tv_nsec =
-		0;
+	inode->i_ctime.tv_nsec = inode->i_mtime.tv_nsec =
+		inode->i_atime.tv_nsec = 0;
 	inode_dec_link_count(inode);
 	mark_inode_dirty(inode);
 
@@ -413,8 +413,8 @@ static int ouichefs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	struct ouichefs_inode_info *ci_new = OUICHEFS_INODE(new_dir);
 	struct inode *src = d_inode(old_dentry);
 	struct buffer_head *bh_old = NULL, *bh_new = NULL;
-	struct ouichefs_dir_block *dir_block = NULL;
-	int i, f_id = -1, new_pos = -1, ret, nr_subs, f_pos = -1;
+	struct ouichefs_dir_block *db_old, *db_new;
+	int i, old_pos = -1, new_pos = -1, ret = 0, total_files;
 
 	/* fail with these unsupported flags */
 	if (flags & (RENAME_EXCHANGE | RENAME_WHITEOUT))
@@ -424,89 +424,100 @@ static int ouichefs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	if (strlen(new_dentry->d_name.name) > OUICHEFS_FILENAME_LEN)
 		return -ENAMETOOLONG;
 
-	/* Fail if new_dentry exists or if new_dir is full */
+	/* Read new directory index block */
 	bh_new = sb_bread(sb, ci_new->index_block);
 	if (!bh_new)
 		return -EIO;
-	dir_block = (struct ouichefs_dir_block *)bh_new->b_data;
-	for (i = 0; i < OUICHEFS_MAX_SUBFILES; i++) {
-		/* if old_dir == new_dir, save the renamed file position */
-		if (new_dir == old_dir) {
-			if (strncmp(dir_block->files[i].filename,
-				    old_dentry->d_name.name,
-				    OUICHEFS_FILENAME_LEN) == 0)
-				f_pos = i;
-		}
-		if (strncmp(dir_block->files[i].filename,
-			    new_dentry->d_name.name,
-			    OUICHEFS_FILENAME_LEN) == 0) {
+
+	/* Scan new directory block */
+	db_new = (struct ouichefs_dir_block *)bh_new->b_data;
+	old_pos = -1;
+	for (i = 0; i < OUICHEFS_MAX_SUBFILES && db_new->files[i].inode; i++) {
+		/* If the old file is in this dir save the old file position */
+		if (db_new->files[i].inode == src->i_ino)
+			old_pos = i;
+
+		/* New file already exists */
+		if (!strncmp(db_new->files[i].filename, new_dentry->d_name.name,
+			     OUICHEFS_FILENAME_LEN)) {
 			ret = -EEXIST;
-			goto relse_new;
+			goto rename_end;
 		}
-		if (new_pos < 0 && dir_block->files[i].inode == 0)
-			new_pos = i;
 	}
+	new_pos = i;
+
 	/* if old_dir == new_dir, just rename entry */
 	if (old_dir == new_dir) {
-		strscpy(dir_block->files[f_pos].filename,
-			new_dentry->d_name.name, OUICHEFS_FILENAME_LEN);
-		mark_buffer_dirty(bh_new);
-		ret = 0;
-		goto relse_new;
+		if (old_pos < 0) {
+			ret = -ENOENT;
+			goto rename_end;
+		}
+
+		new_pos = old_pos;
+		goto rename_update_new_name;
 	}
 
 	/* If new directory is empty, fail */
-	if (new_pos < 0) {
+	if (new_pos == OUICHEFS_MAX_SUBFILES) {
 		ret = -EMLINK;
-		goto relse_new;
+		goto rename_end;
 	}
 
-	/* insert in new parent directory */
-	dir_block->files[new_pos].inode = src->i_ino;
-	strscpy(dir_block->files[new_pos].filename, new_dentry->d_name.name,
-		OUICHEFS_FILENAME_LEN);
-	mark_buffer_dirty(bh_new);
-	brelse(bh_new);
-
-	/* Update new parent inode metadata */
-	new_dir->i_atime = new_dir->i_ctime = new_dir->i_mtime =
-		current_time(new_dir);
-	if (S_ISDIR(src->i_mode))
-		inode_inc_link_count(new_dir);
-	mark_inode_dirty(new_dir);
-
-	/* remove target from old parent directory */
+	/* Read old directory index block */
 	bh_old = sb_bread(sb, ci_old->index_block);
-	if (!bh_old)
-		return -EIO;
-	dir_block = (struct ouichefs_dir_block *)bh_old->b_data;
-	/* Search for inode in old directory and number of subfiles */
-	for (i = 0; OUICHEFS_MAX_SUBFILES; i++) {
-		if (dir_block->files[i].inode == src->i_ino)
-			f_id = i;
-		else if (dir_block->files[i].inode == 0)
-			break;
+	if (!bh_old) {
+		ret = -EIO;
+		goto rename_end;
 	}
-	nr_subs = i;
+
+	/* Find old directory entry */
+	db_old = (struct ouichefs_dir_block *)bh_old->b_data;
+	old_pos = -1;
+	for (i = 0; i < OUICHEFS_MAX_SUBFILES && db_old->files[i].inode; i++) {
+		if (db_old->files[i].inode == src->i_ino)
+			old_pos = i;
+	}
+	total_files = i;
+
+	if (old_pos < 0) {
+		ret = -ENOENT;
+		goto rename_end;
+	}
 
 	/* Remove file from old parent directory */
-	if (f_id != OUICHEFS_MAX_SUBFILES - 1)
-		memmove(dir_block->files + f_id, dir_block->files + f_id + 1,
-			(nr_subs - f_id - 1) * sizeof(struct ouichefs_file));
-	memset(&dir_block->files[nr_subs - 1], 0, sizeof(struct ouichefs_file));
+	if (old_pos != OUICHEFS_MAX_SUBFILES - 1)
+		memmove(db_old->files + old_pos, db_old->files + old_pos + 1,
+			(total_files - old_pos - 1) *
+				sizeof(struct ouichefs_file));
+	memset(&db_old->files[total_files - 1], 0,
+	       sizeof(struct ouichefs_file));
 	mark_buffer_dirty(bh_old);
-	brelse(bh_old);
 
 	/* Update old parent inode metadata */
-	old_dir->i_atime = old_dir->i_ctime = old_dir->i_mtime =
-		current_time(old_dir);
-	if (S_ISDIR(src->i_mode))
+	old_dir->i_ctime = old_dir->i_mtime = current_time(old_dir);
+
+	/* Link counts were changed */
+	if (S_ISDIR(src->i_mode)) {
 		inode_dec_link_count(old_dir);
+		inode_inc_link_count(new_dir);
+	}
+
+	/* Old inode was modified */
 	mark_inode_dirty(old_dir);
 
-	return 0;
+	/* Insert in new parent directory */
+	db_new->files[new_pos].inode = src->i_ino;
+rename_update_new_name:
+	strscpy(db_new->files[new_pos].filename, new_dentry->d_name.name,
+		OUICHEFS_FILENAME_LEN);
+	mark_buffer_dirty(bh_new);
 
-relse_new:
+	/* Update new parent inode metadata */
+	new_dir->i_ctime = new_dir->i_mtime = current_time(new_dir);
+	mark_inode_dirty(new_dir);
+
+rename_end:
+	brelse(bh_old);
 	brelse(bh_new);
 	return ret;
 }
