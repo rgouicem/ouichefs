@@ -192,7 +192,8 @@ const struct address_space_operations ouichefs_aops = {
 	.write_end = ouichefs_write_end
 };
 
-static int ouichefs_open(struct inode *inode, struct file *file) {
+static int ouichefs_open(struct inode *inode, struct file *file)
+{
 	bool wronly = (file->f_flags & O_WRONLY) != 0;
 	bool rdwr = (file->f_flags & O_RDWR) != 0;
 	bool trunc = (file->f_flags & O_TRUNC) != 0;
@@ -220,7 +221,7 @@ static int ouichefs_open(struct inode *inode, struct file *file) {
 
 		brelse(bh_index);
 	}
-	
+
 	return 0;
 }
 
