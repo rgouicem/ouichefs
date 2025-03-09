@@ -1,11 +1,20 @@
 BIN ?= mkfs.ouichefs
 IMG ?= test.img
 IMGSIZE ?= 50
+CC ?= gcc
+CFLAGS ?= -Wall
+
+prefix ?= /usr/local
+exec_prefix ?= $(prefix)
+bindir ?= $(exec_prefix)/bin
 
 all: ${BIN}
 
 ${BIN}: mkfs-ouichefs.c
-	gcc -Wall -o $@ $<
+	${CC} ${CFLAGS} ${LDFLAGS} -o $@ $<
+
+install: ${BIN}
+	install -Dm 755 ${BIN} $(DESTDIR)$(bindir)/mkfs.ouichefs
 
 img: ${BIN}
 	rm -rf ${IMG}
@@ -19,4 +28,4 @@ clean:
 mrproper: clean
 	rm -rf ${BIN}
 
-.PHONY: all clean mrproper img
+.PHONY: all install clean mrproper img
