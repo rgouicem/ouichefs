@@ -1,5 +1,7 @@
 # Prerequisites
 *.d
+# But not *.d directories!
+!*.d/
 
 # Object files
 *.o
@@ -54,3 +56,11 @@ dkms.conf
 
 # Other
 mkfs/test.img
+compile_commands.json
+
+# mkosi stuff
+homedir/
+*.local.conf
+mkosi.local/*
+mkosi.key
+mkosi.crt
