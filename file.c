@@ -56,6 +56,7 @@ static int ouichefs_file_get_block(struct inode *inode, sector_t iblock,
 			goto brelse_index;
 		}
 		index->blocks[iblock] = bno;
+		mark_buffer_dirty(bh_index);
 	} else {
 		bno = index->blocks[iblock];
 	}
