@@ -275,8 +275,6 @@ int ouichefs_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->nr_free_blocks = csb->nr_free_blocks;
 	sb->s_fs_info = sbi;
 
-	brelse(bh);
-
 	/* Alloc and copy ifree_bitmap */
 	sbi->ifree_bitmap =
 		kzalloc(sbi->nr_ifree_blocks * OUICHEFS_BLOCK_SIZE, GFP_KERNEL);
@@ -287,6 +285,7 @@ int ouichefs_fill_super(struct super_block *sb, void *data, int silent)
 	for (i = 0; i < sbi->nr_ifree_blocks; i++) {
 		int idx = sbi->nr_istore_blocks + i + 1;
 
+		brelse(bh);
 		bh = sb_bread(sb, idx);
 		if (!bh) {
 			ret = -EIO;
@@ -295,8 +294,6 @@ int ouichefs_fill_super(struct super_block *sb, void *data, int silent)
 
 		memcpy((void *)sbi->ifree_bitmap + i * OUICHEFS_BLOCK_SIZE,
 		       bh->b_data, OUICHEFS_BLOCK_SIZE);
-
-		brelse(bh);
 	}
 
 	/* Alloc and copy bfree_bitmap */
@@ -309,6 +306,7 @@ int ouichefs_fill_super(struct super_block *sb, void *data, int silent)
 	for (i = 0; i < sbi->nr_bfree_blocks; i++) {
 		int idx = sbi->nr_istore_blocks + sbi->nr_ifree_blocks + i + 1;
 
+		brelse(bh);
 		bh = sb_bread(sb, idx);
 		if (!bh) {
 			ret = -EIO;
@@ -317,8 +315,6 @@ int ouichefs_fill_super(struct super_block *sb, void *data, int silent)
 
 		memcpy((void *)sbi->bfree_bitmap + i * OUICHEFS_BLOCK_SIZE,
 		       bh->b_data, OUICHEFS_BLOCK_SIZE);
-
-		brelse(bh);
 	}
 
 	/* Create root inode */
