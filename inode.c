@@ -301,16 +301,13 @@ end:
 static int ouichefs_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct super_block *sb = dir->i_sb;
-	struct ouichefs_sb_info *sbi = OUICHEFS_SB(sb);
 	struct inode *inode = d_inode(dentry);
-	struct buffer_head *bh = NULL, *bh2 = NULL;
+	struct buffer_head *bh = NULL;
 	struct ouichefs_dir_block *dir_block = NULL;
-	struct ouichefs_file_index_block *file_block = NULL;
-	uint32_t ino, bno;
+	uint32_t ino;
 	int i, f_id = -1, nr_subs = 0;
 
 	ino = inode->i_ino;
-	bno = OUICHEFS_INODE(inode)->index_block;
 
 	/* Read parent directory index */
 	bh = sb_bread(sb, OUICHEFS_INODE(dir)->index_block);
@@ -335,66 +332,13 @@ static int ouichefs_unlink(struct inode *dir, struct dentry *dentry)
 	mark_buffer_dirty(bh);
 	brelse(bh);
 
+	inode_dec_link_count(inode);
+
 	/* Update inode stats */
 	dir->i_mtime = dir->i_ctime = current_time(dir);
 	if (S_ISDIR(inode->i_mode))
 		inode_dec_link_count(dir);
 	mark_inode_dirty(dir);
-
-	/*
-	 * Cleanup pointed blocks if unlinking a file. If we fail to read the
-	 * index block, cleanup inode anyway and lose this file's blocks
-	 * forever. If we fail to scrub a data block, don't fail (too late
-	 * anyway), just put the block and continue.
-	 */
-	bh = sb_bread(sb, bno);
-	if (!bh)
-		goto clean_inode;
-	file_block = (struct ouichefs_file_index_block *)bh->b_data;
-	if (S_ISDIR(inode->i_mode))
-		goto scrub;
-	for (i = 0; i < inode->i_blocks - 1; i++) {
-		char *block;
-
-		if (!file_block->blocks[i])
-			continue;
-
-    bh2 = sb_bread(sb, le32_to_cpu(file_block->blocks[i]));
-		if (!bh2)
-			goto put_block;
-		block = (char *)bh2->b_data;
-		memset(block, 0, OUICHEFS_BLOCK_SIZE);
-		mark_buffer_dirty(bh2);
-		brelse(bh2);
-put_block:
-		put_block(sbi, le32_to_cpu(file_block->blocks[i]));
-	}
-
-scrub:
-	/* Scrub index block */
-	memset(file_block, 0, OUICHEFS_BLOCK_SIZE);
-	mark_buffer_dirty(bh);
-	sync_dirty_buffer(bh);
-	brelse(bh);
-
-clean_inode:
-	/* Cleanup inode and mark dirty */
-	inode->i_blocks = 0;
-	OUICHEFS_INODE(inode)->index_block = 0;
-	inode->i_size = 0;
-	i_uid_write(inode, 0);
-	i_gid_write(inode, 0);
-	inode->i_mode = 0;
-	inode->i_ctime.tv_sec = inode->i_mtime.tv_sec = inode->i_atime.tv_sec =
-		0;
-	inode->i_ctime.tv_nsec = inode->i_mtime.tv_nsec =
-		inode->i_atime.tv_nsec = 0;
-	inode_dec_link_count(inode);
-	mark_inode_dirty(inode);
-
-	/* Free inode and index block from bitmap */
-	put_block(sbi, bno);
-	put_inode(sbi, ino);
 
 	return 0;
 }
@@ -526,6 +470,8 @@ static int ouichefs_rmdir(struct inode *dir, struct dentry *dentry)
 		return -ENOTEMPTY;
 	}
 	brelse(bh);
+
+	inode_dec_link_count(inode);
 
 	/* Remove directory with unlink */
 	return ouichefs_unlink(dir, dentry);

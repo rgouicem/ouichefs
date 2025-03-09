@@ -96,6 +96,65 @@ static int ouichefs_write_inode(struct inode *inode,
 	return 0;
 }
 
+static void ouichefs_evict_inode(struct inode *inode)
+{
+	struct super_block *sb = inode->i_sb;
+	struct ouichefs_sb_info *sbi = OUICHEFS_SB(sb);
+	struct ouichefs_inode_info *inode_info = OUICHEFS_INODE(inode);
+	struct buffer_head *bh;
+	struct ouichefs_file_index_block *file_index;
+	uint32_t ino = inode->i_ino;
+	uint32_t i;
+
+	truncate_inode_pages_final(&inode->i_data);
+
+	/*
+	 * Cleanup pointed blocks if file/directory is not linked anymore.
+	 * If we fail to read the index block, cleanup inode anyway and
+	 * lose this file/directory's blocks forever.
+	 */
+	if (!inode->i_nlink && inode_info->index_block) {
+		bh = sb_bread(sb, inode_info->index_block);
+		if (!bh) {
+			pr_warn("failed to release index block\n");
+			goto invalidate;
+		}
+
+		if (S_ISREG(inode->i_mode)) {
+			file_index = (struct ouichefs_file_index_block *)bh->b_data;
+
+			for (i = 0; i < inode->i_blocks - 1; ++i) {
+				if (!le32_to_cpu(file_index->blocks[i]))
+					continue;
+
+				put_block(sbi, le32_to_cpu(file_index->blocks[i]));
+			}
+		}
+
+		/*
+		 * Make sure the buffer is not marked dirty anymore (and no writeback
+		 * is in progress), as we don't want it to be written back when it might
+		 * already be in use for something else (especially for the contents of a file)!
+		 */
+		lock_buffer(bh);
+		clear_buffer_dirty(bh);
+		unlock_buffer(bh);
+		brelse(bh);
+
+		put_block(sbi, inode_info->index_block);
+		inode_info->index_block = 0;
+	}
+
+invalidate:
+	invalidate_inode_buffers(inode);
+	clear_inode(inode);
+
+	if (!inode->i_nlink) {
+		/* Free inode from bitmap */
+		put_inode(sbi, ino);
+	}
+}
+
 static int sync_sb_info(struct super_block *sb, int wait)
 {
 	struct ouichefs_sb_info *sbi = OUICHEFS_SB(sb);
@@ -226,6 +285,7 @@ static struct super_operations ouichefs_super_ops = {
 	.alloc_inode = ouichefs_alloc_inode,
 	.destroy_inode = ouichefs_destroy_inode,
 	.write_inode = ouichefs_write_inode,
+	.evict_inode = ouichefs_evict_inode,
 	.sync_fs = ouichefs_sync_fs,
 	.statfs = ouichefs_statfs,
 };
