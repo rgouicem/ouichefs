@@ -327,7 +327,6 @@ int ouichefs_fill_super(struct super_block *sb, void *data, int silent)
 		ret = PTR_ERR(root_inode);
 		goto free_bfree;
 	}
-	inode_init_owner(&nop_mnt_idmap, root_inode, NULL, root_inode->i_mode);
 	sb->s_root = d_make_root(root_inode);
 	if (!sb->s_root) {
 		ret = -ENOMEM;
