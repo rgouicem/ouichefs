@@ -523,6 +523,7 @@ static int ouichefs_rmdir(struct inode *dir, struct dentry *dentry)
 	struct inode *inode = d_inode(dentry);
 	struct buffer_head *bh;
 	struct ouichefs_dir_block *dblock;
+	int ret;
 
 	/* If the directory is not empty, fail */
 	if (inode->i_nlink > 2)
@@ -538,7 +539,10 @@ static int ouichefs_rmdir(struct inode *dir, struct dentry *dentry)
 	brelse(bh);
 
 	/* Remove directory with unlink */
-	return ouichefs_unlink(dir, dentry);
+	ret = ouichefs_unlink(dir, dentry);
+	if (!ret)
+		inode_dec_link_count(inode);
+	return ret;
 }
 
 static const struct inode_operations ouichefs_inode_ops = {
