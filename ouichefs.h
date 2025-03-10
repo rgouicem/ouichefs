@@ -101,6 +101,7 @@ struct inode *ouichefs_iget(struct super_block *sb, unsigned long ino);
 extern const struct file_operations ouichefs_file_ops;
 extern const struct file_operations ouichefs_dir_ops;
 extern const struct address_space_operations ouichefs_aops;
+int ouichefs_truncate(struct inode *inode);
 
 /* Getters for superblock and inode */
 #define OUICHEFS_SB(sb) ((sb)->s_fs_info)

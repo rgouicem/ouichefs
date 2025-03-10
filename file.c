@@ -50,12 +50,17 @@ static int ouichefs_file_get_block(struct inode *inode, sector_t iblock,
 			ret = 0;
 			goto brelse_index;
 		}
+
 		bno = get_free_block(sbi);
 		if (!bno) {
 			ret = -ENOSPC;
 			goto brelse_index;
 		}
+
 		index->blocks[iblock] = cpu_to_le32(bno);
+		++inode->i_blocks;
+
+		mark_inode_dirty(inode);
 		mark_buffer_dirty(bh_index);
 	} else {
 		bno = le32_to_cpu(index->blocks[iblock]);
@@ -98,29 +103,22 @@ static int ouichefs_write_begin(struct file *file,
 				unsigned int len, struct page **pagep,
 				void **fsdata)
 {
-	struct ouichefs_sb_info *sbi = OUICHEFS_SB(file->f_inode->i_sb);
 	int err;
-	uint32_t nr_allocs = 0;
-
-	/* Check if the write can be completed (enough space?) */
-	if (pos + len > OUICHEFS_MAX_FILESIZE)
-		return -ENOSPC;
-	nr_allocs = max(pos + len, file->f_inode->i_size) / OUICHEFS_BLOCK_SIZE;
-	if (nr_allocs > file->f_inode->i_blocks - 1)
-		nr_allocs -= file->f_inode->i_blocks - 1;
-	else
-		nr_allocs = 0;
-	if (nr_allocs > sbi->nr_free_blocks)
-		return -ENOSPC;
 
 	/* prepare the write */
 	err = block_write_begin(mapping, pos, len, pagep,
 				ouichefs_file_get_block);
 	/* if this failed, reclaim newly allocated blocks */
 	if (err < 0) {
-		pr_err("%s:%d: newly allocated blocks reclaim not implemented yet\n",
-		       __func__, __LINE__);
+		truncate_pagecache(file->f_inode, file->f_inode->i_size);
+		if (ouichefs_truncate(file->f_inode) < 0)
+			pr_err("%s:%d: truncate failed\n", __func__, __LINE__);
+		goto out;
 	}
+
+	return 0;
+
+out:
 	return err;
 }
 
@@ -135,8 +133,6 @@ static int ouichefs_write_end(struct file *file, struct address_space *mapping,
 {
 	int ret;
 	struct inode *inode = file->f_inode;
-	struct ouichefs_inode_info *ci = OUICHEFS_INODE(inode);
-	struct super_block *sb = inode->i_sb;
 
 	/* Complete the write() */
 	ret = generic_write_end(file, mapping, pos, len, copied, page, fsdata);
@@ -144,45 +140,11 @@ static int ouichefs_write_end(struct file *file, struct address_space *mapping,
 		pr_err("%s:%d: wrote less than asked... what do I do? nothing for now...\n",
 		       __func__, __LINE__);
 	} else {
-		uint32_t nr_blocks_old = inode->i_blocks;
-
 		/* Update inode metadata */
-		inode->i_blocks = (roundup(inode->i_size, OUICHEFS_BLOCK_SIZE) /
-				   OUICHEFS_BLOCK_SIZE) +
-				  1;
 		inode->i_mtime = inode->i_ctime = current_time(inode);
 		mark_inode_dirty(inode);
-
-		/* If file is smaller than before, free unused blocks */
-		if (nr_blocks_old > inode->i_blocks) {
-			int i;
-			struct buffer_head *bh_index;
-			struct ouichefs_file_index_block *index;
-
-			/* Free unused blocks from page cache */
-			truncate_pagecache(inode, inode->i_size);
-
-			/* Read index block to remove unused blocks */
-			bh_index = sb_bread(sb, ci->index_block);
-			if (!bh_index) {
-				pr_err("failed truncating '%s'. we just lost %llu blocks\n",
-				       file->f_path.dentry->d_name.name,
-				       nr_blocks_old - inode->i_blocks);
-				goto end;
-			}
-			index = (struct ouichefs_file_index_block *)
-					bh_index->b_data;
-
-			for (i = inode->i_blocks - 1; i < nr_blocks_old - 1;
-			     i++) {
-				put_block(OUICHEFS_SB(sb), le32_to_cpu(index->blocks[i]));
-				index->blocks[i] = 0;
-			}
-			mark_buffer_dirty(bh_index);
-			brelse(bh_index);
-		}
 	}
-end:
+
 	return ret;
 }
 
@@ -237,3 +199,50 @@ const struct file_operations ouichefs_file_ops = {
 	.write_iter = generic_file_write_iter,
 	.fsync = generic_file_fsync,
 };
+
+int ouichefs_truncate(struct inode *inode)
+{
+	int ret;
+	struct super_block *sb = inode->i_sb;
+	struct ouichefs_sb_info *sbi = OUICHEFS_SB(sb);
+	struct ouichefs_inode_info *inode_info = OUICHEFS_INODE(inode);
+	struct buffer_head *bh;
+	size_t next_num_blocks;
+
+	bh = sb_bread(sb, inode_info->index_block);
+	if (!bh) {
+		ret = -EIO;
+		goto out;
+	}
+
+	ret = block_truncate_page(inode->i_mapping, inode->i_size, ouichefs_file_get_block);
+	if (ret < 0)
+		goto out_brelse;
+
+	struct ouichefs_file_index_block *index = (struct ouichefs_file_index_block *)bh->b_data;
+
+	next_num_blocks = (inode->i_size + sb->s_blocksize - 1) >> sb->s_blocksize_bits;
+	for (size_t i = next_num_blocks; i < OUICHEFS_FILE_MAX_BLOCKS; ++i) {
+		uint32_t bno = le32_to_cpu(index->blocks[i]);
+
+		if (!bno)
+			continue;
+
+		put_block(sbi, bno);
+		--inode->i_blocks;
+
+		index->blocks[i] = cpu_to_le32(0);
+	}
+
+	mark_buffer_dirty(bh);
+	brelse(bh);
+
+	mark_inode_dirty(inode);
+
+	return 0;
+
+out_brelse:
+	brelse(bh);
+out:
+	return ret;
+}
