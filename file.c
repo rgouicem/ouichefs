@@ -155,45 +155,8 @@ const struct address_space_operations ouichefs_aops = {
 	.write_end = ouichefs_write_end
 };
 
-static int ouichefs_open(struct inode *inode, struct file *file)
-{
-	bool wronly = (file->f_flags & O_WRONLY) != 0;
-	bool rdwr = (file->f_flags & O_RDWR) != 0;
-	bool trunc = (file->f_flags & O_TRUNC) != 0;
-
-	if ((wronly || rdwr) && trunc && (inode->i_size != 0)) {
-		struct super_block *sb = inode->i_sb;
-		struct ouichefs_sb_info *sbi = OUICHEFS_SB(sb);
-		struct ouichefs_inode_info *ci = OUICHEFS_INODE(inode);
-		struct ouichefs_file_index_block *index;
-		struct buffer_head *bh_index;
-		sector_t iblock;
-
-		/* Read index block from disk */
-		bh_index = sb_bread(sb, ci->index_block);
-		if (!bh_index)
-			return -EIO;
-		index = (struct ouichefs_file_index_block *)bh_index->b_data;
-
-		for (iblock = 0; iblock < inode->i_blocks - 1; iblock++) {
-			if (!index->blocks[iblock])
-				continue;
-			put_block(sbi, le32_to_cpu(index->blocks[iblock]));
-			index->blocks[iblock] = 0;
-		}
-		inode->i_size = 0;
-		inode->i_blocks = 1;
-
-		mark_buffer_dirty(bh_index);
-		brelse(bh_index);
-	}
-
-	return 0;
-}
-
 const struct file_operations ouichefs_file_ops = {
 	.owner = THIS_MODULE,
-	.open = ouichefs_open,
 	.llseek = generic_file_llseek,
 	.read_iter = generic_file_read_iter,
 	.write_iter = generic_file_write_iter,
