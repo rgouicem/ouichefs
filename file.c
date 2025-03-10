@@ -32,7 +32,7 @@ static int ouichefs_file_get_block(struct inode *inode, sector_t iblock,
 	int ret = 0, bno;
 
 	/* If block number exceeds filesize, fail */
-	if (iblock >= OUICHEFS_BLOCK_SIZE >> 2)
+	if (iblock >= OUICHEFS_FILE_MAX_BLOCKS)
 		return -EFBIG;
 
 	/* Read index block from disk */
