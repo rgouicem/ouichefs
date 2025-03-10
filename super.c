@@ -123,7 +123,7 @@ static void ouichefs_evict_inode(struct inode *inode)
 		if (S_ISREG(inode->i_mode)) {
 			file_index = (struct ouichefs_file_index_block *)bh->b_data;
 
-			for (i = 0; i < inode->i_blocks - 1; ++i) {
+			for (i = 0; i < OUICHEFS_FILE_MAX_BLOCKS; ++i) {
 				if (!le32_to_cpu(file_index->blocks[i]))
 					continue;
 
