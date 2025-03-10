@@ -97,7 +97,7 @@ static struct ouichefs_superblock *write_superblock(int fd, struct stat *fstats)
 	nr_inodes = nr_blocks;
 	mod = nr_inodes % OUICHEFS_INODES_PER_BLOCK;
 	if (mod != 0)
-		nr_inodes += mod;
+		nr_inodes += (OUICHEFS_INODES_PER_BLOCK - mod);
 	nr_istore_blocks = idiv_ceil(nr_inodes, OUICHEFS_INODES_PER_BLOCK);
 	nr_ifree_blocks = idiv_ceil(nr_inodes, OUICHEFS_BLOCK_SIZE * 8);
 	nr_bfree_blocks = idiv_ceil(nr_blocks, OUICHEFS_BLOCK_SIZE * 8);
@@ -111,7 +111,7 @@ static struct ouichefs_superblock *write_superblock(int fd, struct stat *fstats)
 	sb->nr_istore_blocks = htole32(nr_istore_blocks);
 	sb->nr_ifree_blocks = htole32(nr_ifree_blocks);
 	sb->nr_bfree_blocks = htole32(nr_bfree_blocks);
-	sb->nr_free_inodes = htole32(nr_inodes - 1);
+	sb->nr_free_inodes = htole32(nr_inodes - 2);
 	sb->nr_free_blocks = htole32(nr_data_blocks - 1);
 
 	ret = write(fd, sb, sizeof(struct ouichefs_superblock));
@@ -207,7 +207,7 @@ static int write_ifree_blocks(int fd, struct ouichefs_superblock *sb)
 	/* Set all bits to 1 */
 	memset(ifree, 0xff, OUICHEFS_BLOCK_SIZE);
 
-	/* First ifree block, containing first used inode */
+	/* First ifree block, containing two used inodes (empty and root inode) */
 	ifree[0] = htole64(0xfffffffffffffffc);
 	ret = write(fd, ifree, OUICHEFS_BLOCK_SIZE);
 	if (ret != OUICHEFS_BLOCK_SIZE) {
@@ -215,7 +215,7 @@ static int write_ifree_blocks(int fd, struct ouichefs_superblock *sb)
 		goto end;
 	}
 
-	/* All ifree blocks except the one containing 2 first inodes */
+	/* All ifree blocks except the one containing two first inodes */
 	ifree[0] = 0xffffffffffffffff;
 	for (i = 1; i < le32toh(sb->nr_ifree_blocks); i++) {
 		ret = write(fd, ifree, OUICHEFS_BLOCK_SIZE);
