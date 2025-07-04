@@ -1,0 +1,6 @@
+# We want to build this as if it were an in-tree module.
+# To this end we mount this file under the lkp/Kbuild in the kernel sources
+# and the rest of the repo under lkp/ouichefs/.
+# From there, this Kbuild file will be included in the kernel build process.
+# This requires that you already have added lkp/ to your Kbuild file in the kernel sources
+obj-y += ouichefs/

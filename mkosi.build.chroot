@@ -1,0 +1,4 @@
+#!/bin/sh
+
+cd ouichefs/mkfs/
+bear -- make mkfs.ouichefs

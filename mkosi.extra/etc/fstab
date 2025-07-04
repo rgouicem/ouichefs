@@ -1,0 +1,3 @@
+# Provide shortcuts to easily mount disks tagged ouichefs1 or ouichefs2
+/dev/disk/by-id/virtio-ouichefs1 /mnt/test1 ouichefs noauto
+/dev/disk/by-id/virtio-ouichefs2 /mnt/test2 ouichefs noauto

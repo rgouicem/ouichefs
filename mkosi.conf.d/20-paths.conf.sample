@@ -1,0 +1,10 @@
+# Copy to `20-paths.local.conf` and adjust paths down below.
+
+[Build]
+BuildSources=../path/to/linux:kernel
+
+# We have to include mkosi-kernel after setting the kernel BuildSource= and Profiles=kernel
+# such that matches are evaluated correctly upon inclusion.
+# See https://matrix.to/#/!eDYSPHneOFqkLxOIBv:matrix.org/$OOS9z4s5MA51dxNwSuGzqk500N6fIMJH1cd6PAjhcKY
+[Include]
+Include=../path/to/mkosi-kernel
