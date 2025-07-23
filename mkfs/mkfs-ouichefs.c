@@ -114,7 +114,7 @@ static struct ouichefs_superblock *write_superblock(int fd,
 	sb->nr_istore_blocks = htole32(nr_istore_blocks);
 	sb->nr_ifree_blocks = htole32(nr_ifree_blocks);
 	sb->nr_bfree_blocks = htole32(nr_bfree_blocks);
-	sb->nr_free_inodes = htole32(nr_inodes - 1);
+	sb->nr_free_inodes = htole32(nr_inodes - 2);
 	sb->nr_free_blocks = htole32(nr_data_blocks - 1);
 
 	ret = write(fd, sb, sizeof(struct ouichefs_superblock));
