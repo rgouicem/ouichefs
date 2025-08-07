@@ -478,7 +478,7 @@ static int ouichefs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 		return -EIO;
 	dir_block = (struct ouichefs_dir_block *)bh_old->b_data;
 	/* Search for inode in old directory and number of subfiles */
-	for (i = 0; OUICHEFS_MAX_SUBFILES; i++) {
+	for (i = 0; i < OUICHEFS_MAX_SUBFILES; i++) {
 		if (le32_to_cpu(dir_block->files[i].inode) == src->i_ino)
 			f_id = i;
 		else if (dir_block->files[i].inode == 0)
