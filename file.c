@@ -213,7 +213,9 @@ static int ouichefs_open(struct inode *inode, struct file *file)
 			return -EIO;
 		index = (struct ouichefs_file_index_block *)bh_index->b_data;
 
-		for (iblock = 0; index->blocks[iblock] != 0; iblock++) {
+		for (iblock = 0; iblock < inode->i_blocks - 1; iblock++) {
+			if (!index->blocks[iblock])
+				continue;
 			put_block(sbi, le32_to_cpu(index->blocks[iblock]));
 			index->blocks[iblock] = 0;
 		}
