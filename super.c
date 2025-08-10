@@ -96,6 +96,80 @@ static int ouichefs_write_inode(struct inode *inode,
 	return 0;
 }
 
+static void ouichefs_evict_inode(struct inode *inode)
+{
+	struct super_block *sb = inode->i_sb;
+	struct buffer_head *bh, *bh2;
+	u32 bno = OUICHEFS_INODE(inode)->index_block;
+	struct ouichefs_file_index_block *file_block;
+	struct ouichefs_sb_info *sbi = OUICHEFS_SB(sb);
+	int i;
+
+	truncate_inode_pages_final(&inode->i_data);
+	invalidate_inode_buffers(inode);
+	clear_inode(inode);
+
+	/* Only delete unreferenced inodes */
+	if (inode->i_nlink)
+		return;
+
+	/*
+	 * Cleanup pointed blocks if deleting a file. If we fail to read the
+	 * index block, cleanup inode anyway and lose this file's blocks
+	 * forever. If we fail to scrub a data block, don't fail (too late
+	 * anyway), just put the block and continue.
+	 */
+	bh = sb_bread(sb, bno);
+	if (!bh) {
+		pr_err("Failed to read index block %u while removing inode %lu. Referenced blocks will be orphaned.",
+			bno, inode->i_ino);
+		goto clean_inode;
+	}
+
+
+	file_block = (struct ouichefs_file_index_block *)bh->b_data;
+	if (S_ISDIR(inode->i_mode))
+		goto scrub;
+	for (i = 0; i < inode->i_blocks - 1; i++) {
+		if (!file_block->blocks[i])
+			continue;
+
+		bh2 = sb_bread(sb, le32_to_cpu(file_block->blocks[i]));
+		if (!bh2)
+			goto put_block;
+		memset(bh2->b_data, 0, OUICHEFS_BLOCK_SIZE);
+		mark_buffer_dirty(bh2);
+		brelse(bh2);
+put_block:
+		put_block(sbi, le32_to_cpu(file_block->blocks[i]));
+	}
+
+scrub:
+	/* Scrub index block */
+	memset(file_block, 0, OUICHEFS_BLOCK_SIZE);
+	mark_buffer_dirty(bh);
+	sync_dirty_buffer(bh);
+	brelse(bh);
+
+clean_inode:
+	/* Cleanup inode and write to disk */
+	inode->i_blocks = 0;
+	OUICHEFS_INODE(inode)->index_block = 0;
+	inode->i_size = 0;
+	i_uid_write(inode, 0);
+	i_gid_write(inode, 0);
+	inode->i_mode = 0;
+	inode->i_ctime.tv_sec = inode->i_mtime.tv_sec = inode->i_atime.tv_sec =
+		0;
+	inode->i_ctime.tv_nsec = inode->i_mtime.tv_nsec =
+		inode->i_atime.tv_nsec = 0;
+	ouichefs_write_inode(inode, NULL);
+
+	/* Free inode and index block from bitmap */
+	put_block(sbi, bno);
+	put_inode(sbi, inode->i_ino);
+}
+
 static int sync_sb_info(struct super_block *sb, int wait)
 {
 	struct ouichefs_sb_info *sbi = OUICHEFS_SB(sb);
@@ -226,6 +300,7 @@ static struct super_operations ouichefs_super_ops = {
 	.alloc_inode = ouichefs_alloc_inode,
 	.destroy_inode = ouichefs_destroy_inode,
 	.write_inode = ouichefs_write_inode,
+	.evict_inode = ouichefs_evict_inode,
 	.sync_fs = ouichefs_sync_fs,
 	.statfs = ouichefs_statfs,
 };
