@@ -1,0 +1,54 @@
+name: Check
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository }}-builder:ci_pr
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Build ouichefs
+        run: make -C /usr/src/linux-6.5.7/ M=$PWD
+
+      - name: Prepare disk image
+        run: make -C mkfs/ img IMG=a.img
+
+      - name: Cache built module
+        uses: actions/cache/save@v4
+        with:
+          path: ./
+          key: ${{ github.sha }}
+
+  check:
+    needs: build
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository }}-builder:ci-pr
+    strategy:
+      matrix:
+        checks: [ouichefs_basic_behavior, ouichefs_fio]
+    timeout-minutes: 10
+    steps:
+      - name: Restore built module
+        uses: actions/cache/restore@v4
+        with:
+          key: ${{ github.sha }}
+          path: ./
+
+      - name: Prepare images
+        run: cp mkfs/a.img mkfs/b.img
+
+      - name: Check ${{ matrix.checks }}...
+        run: >
+          vng
+          --verbose
+          --run=/usr/src/linux-6.5.7
+          --qemu-opts='-drive file=mkfs/a.img,format=raw,if=virtio'
+          --qemu-opts='-drive file=mkfs/b.img,format=raw,if=virtio'
+          --exec='make -C /lib/modules/\`uname -r\`/build M=$PWD modules_install
+          && source ./evaluation.sh
+          && check_${{ matrix.checks }}'
