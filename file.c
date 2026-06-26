@@ -141,7 +141,7 @@ static int ouichefs_write_end(struct file *file, struct address_space *mapping,
 		       __func__, __LINE__);
 	} else {
 		/* Update inode metadata */
-		inode->i_mtime = inode->i_ctime = current_time(inode);
+		inode->i_mtime = inode_set_ctime_current(inode);
 		mark_inode_dirty(inode);
 	}
 

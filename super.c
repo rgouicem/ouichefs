@@ -79,8 +79,8 @@ static int ouichefs_write_inode(struct inode *inode,
 	disk_inode->i_uid = cpu_to_le32(i_uid_read(inode));
 	disk_inode->i_gid = cpu_to_le32(i_gid_read(inode));
 	disk_inode->i_size = cpu_to_le32(inode->i_size);
-	disk_inode->i_ctime = cpu_to_le32(inode->i_ctime.tv_sec);
-	disk_inode->i_nctime = cpu_to_le64(inode->i_ctime.tv_nsec);
+	disk_inode->i_ctime = cpu_to_le32(inode_get_ctime_sec(inode));
+	disk_inode->i_nctime = cpu_to_le64(inode_get_ctime_nsec(inode));
 	disk_inode->i_atime = cpu_to_le32(inode->i_atime.tv_sec);
 	disk_inode->i_natime = cpu_to_le64(inode->i_atime.tv_nsec);
 	disk_inode->i_mtime = cpu_to_le32(inode->i_mtime.tv_sec);

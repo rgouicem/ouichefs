@@ -61,8 +61,8 @@ struct inode *ouichefs_iget(struct super_block *sb, unsigned long ino)
 	i_uid_write(inode, le32_to_cpu(cinode->i_uid));
 	i_gid_write(inode, le32_to_cpu(cinode->i_gid));
 	inode->i_size = le32_to_cpu(cinode->i_size);
-	inode->i_ctime.tv_sec = (time64_t)le32_to_cpu(cinode->i_ctime);
-	inode->i_ctime.tv_nsec = (long)le64_to_cpu(cinode->i_nctime);
+	inode_set_ctime(inode, (time64_t)le32_to_cpu(cinode->i_ctime),
+			(long)le64_to_cpu(cinode->i_nctime));
 	inode->i_atime.tv_sec = (time64_t)le32_to_cpu(cinode->i_atime);
 	inode->i_atime.tv_nsec = (long)le64_to_cpu(cinode->i_natime);
 	inode->i_mtime.tv_sec = (time64_t)le32_to_cpu(cinode->i_mtime);
@@ -193,7 +193,7 @@ static struct inode *ouichefs_new_inode(struct inode *dir, mode_t mode)
 	}
 	set_nlink(inode, 1);
 
-	inode->i_ctime = inode->i_atime = inode->i_mtime = current_time(inode);
+	inode->i_atime = inode->i_mtime = inode_set_ctime_current(inode);
 
 	return inode;
 
@@ -274,7 +274,7 @@ static int ouichefs_create(struct mnt_idmap *idmap, struct inode *dir,
 
 	/* Update stats and mark dir and new inode dirty */
 	mark_inode_dirty(inode);
-	dir->i_mtime = dir->i_ctime = current_time(dir);
+	dir->i_mtime = inode_set_ctime_current(dir);
 	mark_inode_dirty(dir);
 
 	/* setup dentry */
@@ -335,7 +335,7 @@ static int ouichefs_unlink(struct inode *dir, struct dentry *dentry)
 	inode_dec_link_count(inode);
 
 	/* Update inode stats */
-	dir->i_mtime = dir->i_ctime = current_time(dir);
+	dir->i_mtime = inode_set_ctime_current(dir);
 	mark_inode_dirty(dir);
 
 	return 0;
@@ -407,8 +407,7 @@ static int ouichefs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	brelse(bh_new);
 
 	/* Update new parent inode metadata */
-	new_dir->i_atime = new_dir->i_ctime = new_dir->i_mtime =
-		current_time(new_dir);
+	new_dir->i_atime = new_dir->i_mtime = inode_set_ctime_current(new_dir);
 	mark_inode_dirty(new_dir);
 
 	/* remove target from old parent directory */
@@ -434,7 +433,7 @@ static int ouichefs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	brelse(bh_old);
 
 	/* Update old parent inode metadata */
-	old_dir->i_ctime = old_dir->i_mtime = current_time(old_dir);
+	old_dir->i_mtime = inode_set_ctime_current(old_dir);
 	mark_inode_dirty(old_dir);
 
 	return 0;
