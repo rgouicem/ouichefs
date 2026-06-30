@@ -275,8 +275,6 @@ static int ouichefs_create(struct mnt_idmap *idmap, struct inode *dir,
 	/* Update stats and mark dir and new inode dirty */
 	mark_inode_dirty(inode);
 	dir->i_mtime = dir->i_ctime = current_time(dir);
-	if (S_ISDIR(mode))
-		inode_inc_link_count(dir);
 	mark_inode_dirty(dir);
 
 	/* setup dentry */
@@ -468,8 +466,6 @@ static int ouichefs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	/* Update new parent inode metadata */
 	new_dir->i_atime = new_dir->i_ctime = new_dir->i_mtime =
 		current_time(new_dir);
-	if (S_ISDIR(src->i_mode))
-		inode_inc_link_count(new_dir);
 	mark_inode_dirty(new_dir);
 
 	/* remove target from old parent directory */
@@ -496,8 +492,6 @@ static int ouichefs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 
 	/* Update old parent inode metadata */
 	old_dir->i_ctime = old_dir->i_mtime = current_time(old_dir);
-	if (S_ISDIR(src->i_mode))
-		inode_dec_link_count(old_dir);
 	mark_inode_dirty(old_dir);
 
 	return 0;
