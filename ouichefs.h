@@ -14,7 +14,8 @@
 #define OUICHEFS_SB_BLOCK_NR 0
 
 #define OUICHEFS_BLOCK_SIZE (1 << 12) /* 4 KiB */
-#define OUICHEFS_MAX_FILESIZE (1 << 22) /* 4 MiB */
+#define OUICHEFS_FILE_MAX_BLOCKS (OUICHEFS_BLOCK_SIZE >> 2)
+#define OUICHEFS_MAX_FILESIZE (OUICHEFS_FILE_MAX_BLOCKS * OUICHEFS_BLOCK_SIZE) /* 4 MiB */
 #define OUICHEFS_FILENAME_LEN 28
 #define OUICHEFS_MAX_SUBFILES 128
 
@@ -78,7 +79,7 @@ struct ouichefs_sb_info {
 };
 
 struct ouichefs_file_index_block {
-	__le32 blocks[OUICHEFS_BLOCK_SIZE >> 2];
+	__le32 blocks[OUICHEFS_FILE_MAX_BLOCKS];
 };
 
 struct ouichefs_dir_block {
@@ -100,6 +101,7 @@ struct inode *ouichefs_iget(struct super_block *sb, unsigned long ino);
 extern const struct file_operations ouichefs_file_ops;
 extern const struct file_operations ouichefs_dir_ops;
 extern const struct address_space_operations ouichefs_aops;
+int ouichefs_truncate(struct inode *inode);
 
 /* Getters for superblock and inode */
 #define OUICHEFS_SB(sb) ((sb)->s_fs_info)

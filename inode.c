@@ -474,6 +474,32 @@ static int ouichefs_rmdir(struct inode *dir, struct dentry *dentry)
 	return ouichefs_unlink(dir, dentry);
 }
 
+static int ouichefs_setattr(struct mnt_idmap *idmap, struct dentry *dentry, struct iattr *iattr)
+{
+	int ret;
+	struct inode *inode = d_inode(dentry);
+
+	ret = setattr_prepare(&nop_mnt_idmap, dentry, iattr);
+	if (ret < 0)
+		return ret;
+
+	if (iattr->ia_valid & ATTR_SIZE) {
+		ret = inode_newsize_ok(inode, iattr->ia_size);
+		if (ret < 0)
+			return ret;
+
+		truncate_setsize(inode, iattr->ia_size);
+		if (ouichefs_truncate(inode) < 0)
+			pr_err("%s:%d: truncate failed\n", __func__, __LINE__);
+	}
+
+	/* Do simple metadata updates (this excludes setting the size) */
+	setattr_copy(&nop_mnt_idmap, inode, iattr);
+	mark_inode_dirty(inode);
+
+	return 0;
+}
+
 static const struct inode_operations ouichefs_inode_ops = {
 	.lookup = ouichefs_lookup,
 	.create = ouichefs_create,
@@ -481,4 +507,5 @@ static const struct inode_operations ouichefs_inode_ops = {
 	.mkdir = ouichefs_mkdir,
 	.rmdir = ouichefs_rmdir,
 	.rename = ouichefs_rename,
+	.setattr = ouichefs_setattr,
 };
