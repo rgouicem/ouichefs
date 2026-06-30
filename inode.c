@@ -385,6 +385,7 @@ static int ouichefs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	}
 	/* if old_dir == new_dir, just rename entry */
 	if (old_dir == new_dir) {
+		if (f_pos < 0) return -ENOENT;
 		strscpy(dir_block->files[f_pos].filename,
 			new_dentry->d_name.name, OUICHEFS_FILENAME_LEN);
 		mark_buffer_dirty(bh_new);
