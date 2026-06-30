@@ -40,19 +40,22 @@ struct ouichefs_inode {
 	(OUICHEFS_BLOCK_SIZE / sizeof(struct ouichefs_inode))
 
 struct ouichefs_superblock {
-	uint32_t magic; /* Magic number */
+	union {
+		struct {
+			uint32_t magic; /* Magic number */
 
-	uint32_t nr_blocks; /* Total number of blocks (incl sb & inodes) */
-	uint32_t nr_inodes; /* Total number of inodes */
+			uint32_t nr_blocks; /* Total number of blocks (incl sb & inodes) */
+			uint32_t nr_inodes; /* Total number of inodes */
 
-	uint32_t nr_istore_blocks; /* Number of inode store blocks */
-	uint32_t nr_ifree_blocks; /* Number of free inodes bitmask blocks */
-	uint32_t nr_bfree_blocks; /* Number of free blocks bitmask blocks */
+			uint32_t nr_istore_blocks; /* Number of inode store blocks */
+			uint32_t nr_ifree_blocks; /* Number of free inodes bitmask blocks */
+			uint32_t nr_bfree_blocks; /* Number of free blocks bitmask blocks */
 
-	uint32_t nr_free_inodes; /* Number of free inodes */
-	uint32_t nr_free_blocks; /* Number of free blocks */
-
-	char padding[4064]; /* Padding to match block size */
+			uint32_t nr_free_inodes; /* Number of free inodes */
+			uint32_t nr_free_blocks; /* Number of free blocks */
+		};
+		char padding[4096]; /* Padding to match block size */
+	};
 };
 
 struct ouichefs_file_index_block {
