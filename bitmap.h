@@ -104,4 +104,35 @@ static inline void put_block(struct ouichefs_sb_info *sbi, uint32_t bno)
 	pr_debug("%s:%d: freed block %u\n", __func__, __LINE__, bno);
 }
 
+static inline void copy_bitmap_from_le64(unsigned long *dst, __le64 *src)
+{
+	int i;
+
+	for (i = 0; i < (OUICHEFS_BLOCK_SIZE >> 3); i++) {
+#if BITS_PER_LONG == 64
+		dst[i] = le64_to_cpu(src[i]);
+#elif BITS_PER_LONG == 32
+		dst[(i << 1) + 0] = le64_to_cpu(src[i]) >> 0;
+		dst[(i << 1) + 1] = le64_to_cpu(src[i]) >> 32;
+#else
+#error Unsupported long size.
+#endif
+	}
+}
+
+static inline void copy_bitmap_to_le64(__le64 *dst, unsigned long *src)
+{
+	int i;
+
+	for (i = 0; i < (OUICHEFS_BLOCK_SIZE >> 3); i++) {
+#if BITS_PER_LONG == 64
+		dst[i] = cpu_to_le64(src[i]);
+#elif BITS_PER_LONG == 32
+		dst[i] = cpu_to_le64(((uint64_t)src[(i << 1) + 1] << 32) | src[i << 1]);
+#else
+#error Unsupported long size.
+#endif
+	}
+}
+
 #endif /* _OUICHEFS_BITMAP_H */

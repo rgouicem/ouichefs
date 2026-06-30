@@ -54,8 +54,8 @@ static int ouichefs_iterate(struct file *dir, struct dir_context *ctx)
 		f = &dblock->files[i];
 		if (!f->inode)
 			break;
-		if (!dir_emit(ctx, f->filename, OUICHEFS_FILENAME_LEN, f->inode,
-			      DT_UNKNOWN))
+		if (!dir_emit(ctx, f->filename, OUICHEFS_FILENAME_LEN,
+				le32_to_cpu(f->inode), DT_UNKNOWN))
 			break;
 		ctx->pos++;
 	}
@@ -68,4 +68,5 @@ static int ouichefs_iterate(struct file *dir, struct dir_context *ctx)
 const struct file_operations ouichefs_dir_ops = {
 	.owner = THIS_MODULE,
 	.iterate_shared = ouichefs_iterate,
+	.fsync = generic_file_fsync,
 };

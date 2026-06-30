@@ -37,19 +37,19 @@
  */
 
 struct ouichefs_inode {
-	uint32_t i_mode; /* File mode */
-	uint32_t i_uid; /* Owner id */
-	uint32_t i_gid; /* Group id */
-	uint32_t i_size; /* Size in bytes */
-	uint32_t i_ctime; /* Inode change time (sec)*/
-	uint64_t i_nctime; /* Inode change time (nsec) */
-	uint32_t i_atime; /* Access time (sec) */
-	uint64_t i_natime; /* Access time (nsec) */
-	uint32_t i_mtime; /* Modification time (sec) */
-	uint64_t i_nmtime; /* Modification time (nsec) */
-	uint32_t i_blocks; /* Block count */
-	uint32_t i_nlink; /* Hard links count */
-	uint32_t index_block; /* Block with list of blocks for this file */
+	__le32 i_mode; /* File mode */
+	__le32 i_uid; /* Owner id */
+	__le32 i_gid; /* Group id */
+	__le32 i_size; /* Size in bytes */
+	__le32 i_ctime; /* Inode change time (sec)*/
+	__le64 i_nctime; /* Inode change time (nsec) */
+	__le32 i_atime; /* Access time (sec) */
+	__le64 i_natime; /* Access time (nsec) */
+	__le32 i_mtime; /* Modification time (sec) */
+	__le64 i_nmtime; /* Modification time (nsec) */
+	__le32 i_blocks; /* Block count */
+	__le32 i_nlink; /* Hard links count */
+	__le32 index_block; /* Block with list of blocks for this file */
 };
 
 struct ouichefs_inode_info {
@@ -78,12 +78,12 @@ struct ouichefs_sb_info {
 };
 
 struct ouichefs_file_index_block {
-	uint32_t blocks[OUICHEFS_BLOCK_SIZE >> 2];
+	__le32 blocks[OUICHEFS_BLOCK_SIZE >> 2];
 };
 
 struct ouichefs_dir_block {
 	struct ouichefs_file {
-		uint32_t inode;
+		__le32 inode;
 		char filename[OUICHEFS_FILENAME_LEN];
 	} files[OUICHEFS_MAX_SUBFILES];
 };
@@ -101,8 +101,8 @@ extern const struct file_operations ouichefs_file_ops;
 extern const struct file_operations ouichefs_dir_ops;
 extern const struct address_space_operations ouichefs_aops;
 
-/* Getters for superbock and inode */
-#define OUICHEFS_SB(sb) (sb->s_fs_info)
+/* Getters for superblock and inode */
+#define OUICHEFS_SB(sb) ((sb)->s_fs_info)
 #define OUICHEFS_INODE(inode) \
 	(container_of(inode, struct ouichefs_inode_info, vfs_inode))
 

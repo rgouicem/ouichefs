@@ -7,6 +7,9 @@ all: ${BIN}
 ${BIN}: mkfs-ouichefs.c
 	gcc -Wall -o $@ $<
 
+${BIN}-static: mkfs-ouichefs.c
+	gcc -Wall -static -o $@ $<
+
 img: ${BIN}
 	rm -rf ${IMG}
 	dd if=/dev/zero of=${IMG} bs=1M count=${IMGSIZE}
