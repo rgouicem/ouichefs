@@ -277,6 +277,7 @@ int ouichefs_fill_super(struct super_block *sb, void *data, int silent)
 	brelse(bh);
 
 	/* Alloc and copy ifree_bitmap */
+	mutex_init(&sbi->ifree_lock);
 	sbi->ifree_bitmap =
 		kzalloc(sbi->nr_ifree_blocks * OUICHEFS_BLOCK_SIZE, GFP_KERNEL);
 	if (!sbi->ifree_bitmap) {
@@ -299,6 +300,7 @@ int ouichefs_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	/* Alloc and copy bfree_bitmap */
+	mutex_init(&sbi->bfree_lock);
 	sbi->bfree_bitmap =
 		kzalloc(sbi->nr_bfree_blocks * OUICHEFS_BLOCK_SIZE, GFP_KERNEL);
 	if (!sbi->bfree_bitmap) {

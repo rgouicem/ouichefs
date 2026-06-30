@@ -8,6 +8,7 @@
 #define _OUICHEFS_H
 
 #include <linux/fs.h>
+#include <linux/mutex.h>
 
 #define OUICHEFS_MAGIC 0x48434957
 
@@ -73,7 +74,9 @@ struct ouichefs_sb_info {
 	uint32_t nr_free_inodes; /* Number of free inodes */
 	uint32_t nr_free_blocks; /* Number of free blocks */
 
+	struct mutex ifree_lock;
 	unsigned long *ifree_bitmap; /* In-memory free inodes bitmap */
+	struct mutex bfree_lock;
 	unsigned long *bfree_bitmap; /* In-memory free blocks bitmap */
 };
 
