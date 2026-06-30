@@ -336,8 +336,6 @@ static int ouichefs_unlink(struct inode *dir, struct dentry *dentry)
 
 	/* Update inode stats */
 	dir->i_mtime = dir->i_ctime = current_time(dir);
-	if (S_ISDIR(inode->i_mode))
-		inode_dec_link_count(dir);
 	mark_inode_dirty(dir);
 
 	return 0;
@@ -470,8 +468,6 @@ static int ouichefs_rmdir(struct inode *dir, struct dentry *dentry)
 		return -ENOTEMPTY;
 	}
 	brelse(bh);
-
-	inode_dec_link_count(inode);
 
 	/* Remove directory with unlink */
 	return ouichefs_unlink(dir, dentry);
