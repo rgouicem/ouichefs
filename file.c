@@ -178,13 +178,16 @@ int ouichefs_truncate(struct inode *inode)
 		goto out;
 	}
 
-	ret = block_truncate_page(inode->i_mapping, inode->i_size, ouichefs_file_get_block);
+	ret = block_truncate_page(inode->i_mapping, inode->i_size,
+				  ouichefs_file_get_block);
 	if (ret < 0)
 		goto out_brelse;
 
-	struct ouichefs_file_index_block *index = (struct ouichefs_file_index_block *)bh->b_data;
+	struct ouichefs_file_index_block *index =
+		(struct ouichefs_file_index_block *)bh->b_data;
 
-	next_num_blocks = (inode->i_size + sb->s_blocksize - 1) >> sb->s_blocksize_bits;
+	next_num_blocks = (inode->i_size + sb->s_blocksize - 1) >>
+			  sb->s_blocksize_bits;
 	for (size_t i = next_num_blocks; i < OUICHEFS_FILE_MAX_BLOCKS; ++i) {
 		uint32_t bno = le32_to_cpu(index->blocks[i]);
 

@@ -55,7 +55,7 @@ static int ouichefs_iterate(struct file *dir, struct dir_context *ctx)
 		if (!f->inode)
 			break;
 		if (!dir_emit(ctx, f->filename, OUICHEFS_FILENAME_LEN,
-				le32_to_cpu(f->inode), DT_UNKNOWN))
+			      le32_to_cpu(f->inode), DT_UNKNOWN))
 			break;
 		ctx->pos++;
 	}

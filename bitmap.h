@@ -128,7 +128,8 @@ static inline void copy_bitmap_to_le64(__le64 *dst, unsigned long *src)
 #if BITS_PER_LONG == 64
 		dst[i] = cpu_to_le64(src[i]);
 #elif BITS_PER_LONG == 32
-		dst[i] = cpu_to_le64(((uint64_t)src[(i << 1) + 1] << 32) | src[i << 1]);
+		dst[i] = cpu_to_le64(((uint64_t)src[(i << 1) + 1] << 32) |
+				     src[i << 1]);
 #else
 #error Unsupported long size.
 #endif

@@ -385,7 +385,8 @@ static int ouichefs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	}
 	/* if old_dir == new_dir, just rename entry */
 	if (old_dir == new_dir) {
-		if (f_pos < 0) return -ENOENT;
+		if (f_pos < 0)
+			return -ENOENT;
 		strscpy(dir_block->files[f_pos].filename,
 			new_dentry->d_name.name, OUICHEFS_FILENAME_LEN);
 		mark_buffer_dirty(bh_new);
@@ -473,7 +474,8 @@ static int ouichefs_rmdir(struct inode *dir, struct dentry *dentry)
 	return ouichefs_unlink(dir, dentry);
 }
 
-static int ouichefs_setattr(struct mnt_idmap *idmap, struct dentry *dentry, struct iattr *iattr)
+static int ouichefs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+			    struct iattr *iattr)
 {
 	int ret;
 	struct inode *inode = d_inode(dentry);

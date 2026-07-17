@@ -135,10 +135,10 @@ static struct ouichefs_superblock *write_superblock(int fd,
 	       "\tnr_free_inodes=%u\n"
 	       "\tnr_free_blocks=%u\n",
 	       sizeof(struct ouichefs_superblock), le32toh(sb->magic),
-		   le32toh(sb->nr_blocks), le32toh(sb->nr_inodes),
-		   le32toh(sb->nr_istore_blocks),
-		   le32toh(sb->nr_ifree_blocks), le32toh(sb->nr_bfree_blocks),
-		   le32toh(sb->nr_free_inodes), le32toh(sb->nr_free_blocks));
+	       le32toh(sb->nr_blocks), le32toh(sb->nr_inodes),
+	       le32toh(sb->nr_istore_blocks), le32toh(sb->nr_ifree_blocks),
+	       le32toh(sb->nr_bfree_blocks), le32toh(sb->nr_free_inodes),
+	       le32toh(sb->nr_free_blocks));
 
 	return sb;
 }
