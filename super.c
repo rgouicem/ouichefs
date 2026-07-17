@@ -386,7 +386,7 @@ int ouichefs_fill_super(struct super_block *sb, void *data, int silent)
 		brelse(bh);
 	}
 
-	/* 
+	/*
 	 * Create root inode.
 	 *
 	 * 1 is used instead of 0 to stay compatible with userspace applications,

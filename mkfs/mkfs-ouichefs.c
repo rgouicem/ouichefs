@@ -81,8 +81,10 @@ static inline void usage(char *appname)
 static inline uint32_t idiv_ceil(uint32_t a, uint32_t b)
 {
 	uint32_t ret = a / b;
+
 	if (a % b != 0)
 		return ret + 1;
+
 	return ret;
 }
 
@@ -355,25 +357,26 @@ static int write_data_blocks(int fd, struct ouichefs_superblock *sb)
 }
 
 /** Retrieve the size of a block device.
- * 
- * @param[in] fd open file descriptor of the block device 
+ *
+ * @param[in] fd open file descriptor of the block device
  * @param[out] size the size of the device in bytes
  * @return 0 on success. -1 on failure with errno set.
  */
 static int get_blockdev_size(int fd, uint64_t *size)
 {
 	int ret;
+
 	ret = ioctl(fd, BLKGETSIZE64, size);
-	if (ret != 0) {
+	if (ret != 0)
 		return -1;
-	}
+
 	return ret;
 }
 
 int main(int argc, char **argv)
 {
 	int ret = EXIT_SUCCESS, fd;
-	long int min_size;
+	long min_size;
 	uint64_t partition_size = 0;
 	struct stat stat_buf;
 	struct ouichefs_superblock *sb = NULL;
