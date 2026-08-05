@@ -39,12 +39,15 @@ static inline uint32_t get_free_inode(struct ouichefs_sb_info *sbi)
 {
 	uint32_t ret;
 
+	mutex_lock(&sbi->inode_bitmap_lock);
+
 	ret = get_first_free_bit(sbi->ifree_bitmap, sbi->nr_inodes);
 	if (ret) {
 		sbi->nr_free_inodes--;
 		pr_debug("%s:%d: allocated inode %u\n", __func__, __LINE__,
 			 ret);
 	}
+	mutex_unlock(&sbi->inode_bitmap_lock);
 	return ret;
 }
 
@@ -56,12 +59,15 @@ static inline uint32_t get_free_block(struct ouichefs_sb_info *sbi)
 {
 	uint32_t ret;
 
+	mutex_lock(&sbi->block_bitmap_lock);
+
 	ret = get_first_free_bit(sbi->bfree_bitmap, sbi->nr_blocks);
 	if (ret) {
 		sbi->nr_free_blocks--;
 		pr_debug("%s:%d: allocated block %u\n", __func__, __LINE__,
 			 ret);
 	}
+	mutex_unlock(&sbi->block_bitmap_lock);
 	return ret;
 }
 
@@ -85,11 +91,14 @@ static inline int put_free_bit(unsigned long *freemap, unsigned long size,
  */
 static inline void put_inode(struct ouichefs_sb_info *sbi, uint32_t ino)
 {
+	mutex_lock(&sbi->inode_bitmap_lock);
 	if (put_free_bit(sbi->ifree_bitmap, sbi->nr_inodes, ino))
-		return;
+		goto out;
 
 	sbi->nr_free_inodes++;
 	pr_debug("%s:%d: freed inode %u\n", __func__, __LINE__, ino);
+	out:
+	mutex_unlock(&sbi->inode_bitmap_lock);
 }
 
 /*
@@ -97,11 +106,14 @@ static inline void put_inode(struct ouichefs_sb_info *sbi, uint32_t ino)
  */
 static inline void put_block(struct ouichefs_sb_info *sbi, uint32_t bno)
 {
+	mutex_lock(&sbi->block_bitmap_lock);
 	if (put_free_bit(sbi->bfree_bitmap, sbi->nr_blocks, bno))
-		return;
+		goto out;
 
 	sbi->nr_free_blocks++;
 	pr_debug("%s:%d: freed block %u\n", __func__, __LINE__, bno);
+	out:
+	mutex_unlock(&sbi->block_bitmap_lock);
 }
 
 static inline void copy_bitmap_from_le64(unsigned long *dst, __le64 *src)

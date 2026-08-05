@@ -76,6 +76,9 @@ struct ouichefs_sb_info {
 
 	unsigned long *ifree_bitmap; /* In-memory free inodes bitmap */
 	unsigned long *bfree_bitmap; /* In-memory free blocks bitmap */
+
+	struct mutex inode_bitmap_lock; /* Mutex for inode bitmap */
+	struct mutex block_bitmap_lock; /* Mutex for block bitmap */
 };
 
 struct ouichefs_file_index_block {
