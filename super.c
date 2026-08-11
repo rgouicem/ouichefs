@@ -337,6 +337,8 @@ int ouichefs_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->nr_free_inodes = le32_to_cpu(csb->nr_free_inodes);
 	sbi->nr_free_blocks = le32_to_cpu(csb->nr_free_blocks);
 	sb->s_fs_info = sbi;
+	mutex_init(&sbi->inode_bitmap_lock);
+	mutex_init(&sbi->block_bitmap_lock);
 
 	brelse(bh);
 
