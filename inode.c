@@ -476,7 +476,8 @@ static int ouichefs_rmdir(struct inode *dir, struct dentry *dentry)
 	return ouichefs_unlink(dir, dentry);
 }
 
-static int ouichefs_setattr(struct mnt_idmap *idmap, struct dentry *dentry, struct iattr *iattr)
+static int ouichefs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+			    struct iattr *iattr)
 {
 	int ret;
 	struct inode *inode = d_inode(dentry);
